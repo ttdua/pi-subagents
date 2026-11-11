@@ -10,7 +10,10 @@ import { parseThinkingLevel, thinkingLevelError } from "#src/config/thinking-lev
 import type { ParentSnapshot } from "#src/lifecycle/parent-snapshot";
 import type { AgentSpawnConfig, ResumeCallOptions, ResumeOutcome } from "#src/lifecycle/subagent-manager";
 import type { WorkspaceProvider } from "#src/lifecycle/workspace";
+import type { AgentTypeCatalog } from "#src/seams/registry";
 import type {
+  AgentTypeSnapshot,
+  LaunchPolicy,
   ResumeOptions,
   ResumeResult,
   SpawnOptions,
@@ -29,6 +32,7 @@ export interface SubagentManagerLike {
   waitForAll(): Promise<void>;
   hasRunning(): boolean;
   registerWorkspaceProvider(provider: WorkspaceProvider): () => void;
+  registerLaunchPolicy(policy: LaunchPolicy, options: { timeoutMs: number }): () => void;
   resume(id: string, prompt: string, options: ResumeCallOptions): Promise<ResumeOutcome>;
 }
 
@@ -45,11 +49,26 @@ export interface ServiceRuntimeLike {
 
 /** Adapter that wraps SubagentManager to satisfy SubagentsService. */
 export class SubagentsServiceAdapter implements SubagentsService {
+  readonly implementation = "@ttdua/pi-subagents" as const;
+
   constructor(
     private readonly manager: SubagentManagerLike,
     private readonly resolveModel: (input: string, registry: ModelRegistry) => Model<any> | string,
     private readonly runtime: ServiceRuntimeLike,
+    private readonly agentTypes: Pick<AgentTypeCatalog, "list" | "get">,
   ) {}
+
+  private session = "";
+
+  /** The session this instance first started in; `""` before `session_start`. */
+  get sessionId(): string {
+    return this.session;
+  }
+
+  /** Record the instance's session at its first `session_start`; later starts keep it. */
+  bindSession(sessionId: string): void {
+    if (this.session === "") this.session = sessionId;
+  }
 
   spawn(type: string, prompt: string, options?: SpawnOptions): string {
     if (!this.runtime.currentCtx) {
@@ -67,6 +86,7 @@ export class SubagentsServiceAdapter implements SubagentsService {
       // No toolCallId — an SDK spawn has no originating tool call, and
       // Subagent.toolCallId reporting undefined there is the truth.
       parentSession: { parentSessionFile, parentSessionId },
+      origin: { kind: "service" },
       maxTurns: options?.maxTurns,
       thinkingLevel: this.resolveThinkingLevel(options?.thinkingLevel),
       inheritContext: options?.inheritContext,
@@ -118,6 +138,14 @@ export class SubagentsServiceAdapter implements SubagentsService {
       : { kind: "resumed", record: toSubagentRecord(outcome.record) };
   }
 
+  listAgentTypes(): readonly AgentTypeSnapshot[] {
+    return this.agentTypes.list();
+  }
+
+  getAgentType(name: string): AgentTypeSnapshot | undefined {
+    return this.agentTypes.get(name);
+  }
+
   async waitForAll(): Promise<void> {
     return this.manager.waitForAll();
   }
@@ -128,6 +156,10 @@ export class SubagentsServiceAdapter implements SubagentsService {
 
   registerWorkspaceProvider(provider: WorkspaceProvider): () => void {
     return this.manager.registerWorkspaceProvider(provider);
+  }
+
+  registerLaunchPolicy(policy: LaunchPolicy, options: { timeoutMs: number }): () => void {
+    return this.manager.registerLaunchPolicy(policy, options);
   }
 
   /**
@@ -192,6 +224,9 @@ export function toSubagentRecord(record: Subagent): SubagentRecord {
   if (record.turnBudget !== undefined) out.turnBudget = { ...record.turnBudget };
   if (record.outputFile !== undefined) out.outputFile = record.outputFile;
   if (record.resumeRefusal !== undefined) out.resumeRefusal = record.resumeRefusal;
+  const { effectiveModel, effectiveThinking } = record.effective;
+  if (effectiveModel !== undefined) out.effectiveModel = effectiveModel;
+  if (effectiveThinking !== undefined) out.effectiveThinking = effectiveThinking;
 
   return out;
 }

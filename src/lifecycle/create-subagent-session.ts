@@ -23,6 +23,9 @@ import type { AgentConfigLookup } from "#src/config/agent-types";
 import { debugNote } from "#src/debug";
 import type { ChildLifecyclePublisher } from "#src/lifecycle/child-lifecycle";
 import type { ParentSnapshot } from "#src/lifecycle/parent-snapshot";
+import { enforceGrants } from "#src/seams/grant-check";
+import { type EffectiveFacts, effectiveFacts, launchIdentity } from "#src/seams/identity";
+import { finalToolNames } from "#src/seams/registry";
 import { SubagentSession } from "#src/lifecycle/subagent-session";
 import { resolveTurnLimits, type TurnLimitRequest } from "#src/lifecycle/turn-limits";
 import { AskParentTool, type QuestionRecorder } from "#src/session/ask-parent-tool";
@@ -168,6 +171,8 @@ export interface SubagentSessionDeps {
 
 /** Per-spawn parameters — the fields that vary per child session. */
 export interface CreateSubagentSessionParams {
+  /** The record id `spawn()` returned; names the launch on every child event. */
+  agentId: string;
   snapshot: ParentSnapshot;
   type: SubagentType;
   /** Resolved workspace cwd; undefined → parent cwd. */
@@ -189,6 +194,17 @@ export interface CreateSubagentSessionParams {
   notifyParent?: UpdateAnnouncer;
   /** The caller's turn-limit inputs, resolved with the agent's own limit into the session's. */
   turnLimits?: TurnLimitRequest;
+  /**
+   * Receives the model and thinking level the session was created with, before
+   * `session-created` is emitted, so the record and the event carry one snapshot.
+   */
+  onEffectiveFacts?: (facts: EffectiveFacts) => void;
+  /**
+   * The launch policy's tool plan: base tool names replacing the agent's, and
+   * the grants added to them, checked in the child after bind. Absent when no
+   * policy adjusted the launch.
+   */
+  tools?: { toolNames: readonly string[]; grants: readonly string[] };
 }
 
 /**
@@ -216,7 +232,12 @@ export async function createSubagentSession(
 ): Promise<SubagentSession> {
   const { snapshot, type } = params;
   const parentSessionId = params.parentSession?.parentSessionId;
-  deps.lifecycle.spawning({ agentName: type, parentSessionId });
+  const identity = launchIdentity({
+    id: params.agentId,
+    type,
+    currentToolCallId: params.parentSession?.toolCallId,
+  });
+  deps.lifecycle.spawning({ agentName: type, parentSessionId, ...identity });
 
   // Resolve working directory upfront - needed for detectEnv before assembly.
   const effectiveCwd = params.cwd ?? snapshot.cwd;
@@ -243,13 +264,25 @@ export async function createSubagentSession(
     deps.io.assemblerIO,
   );
 
-  const { toolNames, unmatchedPatterns } = expandMcpToolPatterns(
-    cfg.toolNames,
+  const { toolNames: expandedToolNames, unmatchedPatterns } = expandMcpToolPatterns(
+    params.tools?.toolNames ?? cfg.toolNames,
     deps.listParentToolNames(),
   );
   for (const pattern of unmatchedPatterns) {
     debugNote(`agent ${type}: tools pattern ${pattern} matched no tool the parent has`);
   }
+  // `disallowed_tools` applies last to the complete allowlist, child protocol
+  // tools and policy grants included, before the recursion denylist.
+  const protocolTools = buildChildTools(params);
+  const disallowed = deps.registry.resolveAgentConfig(type).disallowedTools;
+  const toolNames = finalToolNames(
+    [...expandedToolNames, ...protocolTools.map((tool) => tool.name)],
+    params.tools?.grants ?? [],
+    disallowed,
+  );
+  const grants = (params.tools?.grants ?? []).filter((name) => toolNames.includes(name));
+  // The SDK drops a custom tool missing from `tools`; keep the two consistent.
+  const childTools = protocolTools.filter((tool) => toolNames.includes(tool.name));
 
   const agentDir = deps.io.getAgentDir();
   const sessionSettings = deps.io.createSettingsManager(cfg.effectiveCwd, agentDir);
@@ -285,7 +318,6 @@ export async function createSubagentSession(
   sessionManager.newSession({ parentSession: params.parentSession?.parentSessionId });
   const sessionId = sessionManager.getSessionId();
 
-  const childTools = buildChildTools(params);
   const { session } = await deps.io.createSession({
     cwd: cfg.effectiveCwd,
     agentDir,
@@ -293,7 +325,7 @@ export async function createSubagentSession(
     settingsManager: sessionSettings,
     modelRegistry: snapshot.modelRegistry,
     model: cfg.model,
-    tools: [...toolNames, ...childTools.map((tool) => tool.name)],
+    tools: toolNames,
     customTools: childTools,
     excludeTools: EXCLUDED_TOOL_NAMES,
     resourceLoader: loader,
@@ -315,7 +347,9 @@ export async function createSubagentSession(
   // entry in place for the first permission check during child extension
   // initialization. The event bus dispatches synchronously, so a synchronous
   // subscriber completes before this returns.
-  deps.lifecycle.sessionCreated({ sessionId, parentSessionId });
+  const facts = Object.freeze(effectiveFacts(session));
+  params.onEffectiveFacts?.(facts);
+  deps.lifecycle.sessionCreated({ sessionId, parentSessionId, ...identity, ...facts });
 
   try {
     // Bind extensions so that session_start fires and extensions can initialize.
@@ -331,7 +365,16 @@ export async function createSubagentSession(
   // Every child session_start handler has now run, so this is the first — and
   // only — moment a parent can observe what the child's extensions installed.
   // Deliberately outside the try above: a child whose binding threw never ran.
-  deps.lifecycle.bound({ sessionId, parentSessionId });
+  let grantedTools: string[];
+  try {
+    grantedTools = enforceGrants(session, grants);
+  } catch (err) {
+    // Not even the pre-grant tool set could be restored: the child cannot be
+    // returned safely, so tear it down as a failed bind is torn down.
+    await subagentSession.dispose();
+    throw err;
+  }
+  deps.lifecycle.bound({ sessionId, parentSessionId, ...identity, grantedTools });
 
   return subagentSession;
 }

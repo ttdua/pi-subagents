@@ -39,8 +39,9 @@ import {
 } from "#src/observation/notification";
 import { SubagentEventsObserver } from "#src/observation/subagent-events-observer";
 import { createSubagentRuntime } from "#src/runtime";
-import { publishSubagentsService, unpublishSubagentsService } from "#src/service/service";
+import { AgentTypeCatalog } from "#src/seams/registry";
 import { SubagentsServiceAdapter } from "#src/service/service-adapter";
+import { ServicePublication } from "#src/seams/service-identity";
 import { detectEnv } from "#src/session/env";
 import { resolveModel } from "#src/session/model-resolver";
 import { createExcludedPackagesStorage } from "#src/session/package-exclusions";
@@ -196,18 +197,27 @@ export default function (pi: ExtensionAPI) {
     getRunConfig: () => settings,
     getRetentionPolicy: () => settings,
     registry,
+    // What a launch policy may grant: the parent's tools, read per launch, and
+    // the packages whose extensions children do not load.
+    launchContext: {
+      listParentTools: () => pi.getAllTools(),
+      excludedPackages: () => settings.excludedExtensionPackages,
+    },
   });
 
   // Typed service published via Symbol.for() for cross-extension access.
   // Consumers: const { getSubagentsService } = await import("@gotgenes/pi-subagents");
-  const service = new SubagentsServiceAdapter(manager, resolveModel, runtime);
-  publishSubagentsService(service);
+  // Published at load, as upstream does, unless this implementation's service
+  // already holds the slot (children load after the main session).
+  const service = new SubagentsServiceAdapter(manager, resolveModel, runtime, new AgentTypeCatalog(registry));
+  const publication = new ServicePublication(service);
+  publication.publish();
 
   const lifecycle = new SessionLifecycleHandler(
     runtime,
     manager,
     () => notifications.dispose(),
-    unpublishSubagentsService,
+    () => publication.stop(),
   );
 
   // Live widget: constructed after the manager (it polls listAgents()) and
@@ -220,6 +230,9 @@ export default function (pi: ExtensionAPI) {
   // registrations rather than sharing a lambda with an unrelated concern.
   const widgetEvents = new WidgetEventsHandler(widget);
 
+  pi.on("session_start", (_event, ctx) => {
+    service.bindSession(ctx.sessionManager.getSessionId());
+  });
   pi.on("session_start", (event, ctx) => lifecycle.handleSessionStart(event, ctx));
   pi.on("session_start", (event, ctx) => widgetEvents.handleSessionStart(event, ctx));
   pi.on("session_before_switch", () => lifecycle.handleSessionBeforeSwitch());
