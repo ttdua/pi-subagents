@@ -211,7 +211,7 @@ export default function (pi: ExtensionAPI) {
   });
 
   // Typed service published via Symbol.for() for cross-extension access.
-  // Consumers: const { getSubagentsService } = await import("@gotgenes/pi-subagents");
+  // Consumers: const { getSubagentsService } = await import("@ttdua/pi-subagents");
   // Published at load, as upstream does, unless this implementation's service
   // already holds the slot (children load after the main session).
   const deprecations = new DeprecationWarnings();
