@@ -2,7 +2,7 @@
 # The script supplies PI_DEMO_ARGS and PI_DEMO_SESSIONS, assembles the PNG frames into
 # demo.webp, and removes the frames directory (only an Output line can write frames).
 
-Output "packages/pi-subagents/docs/assets/frames/"
+Output "docs/assets/frames/"
 
 Require pi
 
@@ -18,7 +18,7 @@ Set Theme "Catppuccin Macchiato"
 Set TypingSpeed 15ms
 
 Hide
-Type 'clear && pi --no-extensions -e ./packages/pi-subagents/src/index.ts $PI_DEMO_ARGS -nc -ns -np --model anthropic/claude-haiku-4-5 --thinking off --session-dir "$PI_DEMO_SESSIONS"'
+Type 'clear && pi --no-extensions -e ./src/index.ts $PI_DEMO_ARGS -nc -ns -np --model anthropic/claude-haiku-4-5 --thinking off --session-dir "$PI_DEMO_SESSIONS"'
 Enter
 Sleep 6s
 Show
@@ -28,7 +28,7 @@ Sleep 500ms
 Enter
 
 Sleep 21s
-Screenshot "packages/pi-subagents/docs/assets/widget.png"
+Screenshot "docs/assets/widget.png"
 Sleep 29s
 
 Type "/subagents:sessions"

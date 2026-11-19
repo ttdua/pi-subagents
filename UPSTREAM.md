@@ -19,7 +19,7 @@ Outside the table below, the fork also changes repository files that upstream ke
 
 | File | Kind | Reason |
 |---|---|---|
-| `package.json` | edit | Rename to private `@ttdua/pi-subagents`; drop `publishConfig`; replace `catalog:` versions with the exact versions from upstream `pnpm-workspace.yaml` at the tag; pin the `@earendil-works/*` dev dependencies to `1.5.0` to match the root; `lint` without markdown lint; `prepack` through `bun`. Declare `pi.subagents.agents` (`./agents`) and ship `agents` in `files`. Pin `@biomejs/biome` to `2.6.8`. |
+| `package.json` | edit | Rename to private `@ttdua/pi-subagents`; drop `publishConfig`; replace `catalog:` versions with the exact versions from upstream `pnpm-workspace.yaml` at the tag; pin the `@earendil-works/*` dev dependencies to `1.5.0` to match the root; `lint` without markdown lint; `prepack` through `bun`. Declare `pi.subagents.agents` (`./agents`) and ship `agents` in `files`. Pin `@biomejs/biome` to `2.6.8`. `files` ships `docs/architecture/*.md` (not the pruned phase history); `lint:md` checks the scope set in `.rumdl.toml`. |
 | `scripts/verify-public-types.sh` | edit | Pack, install and type-check through `bun` instead of `pnpm`; the consumer probe imports the package name read from `package.json` (`@ttdua/pi-subagents`), not the upstream name. |
 | `tsconfig.json` | edit | Inline upstream's `tsconfig.base.json` compiler options, since the base file lives outside the subtree. |
 | `test/ui/widget-viewport.test.ts` | edit | `fakeTerminal` gains `setProgramStatus`, required by the `Terminal` type in pi-tui 1.5.0. Registry fixture holds `general`. |

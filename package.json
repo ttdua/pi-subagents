@@ -17,7 +17,7 @@
     "agents",
     "dist",
     "docs/*.md",
-    "docs/architecture",
+    "docs/architecture/*.md",
     "docs/decisions",
     "CHANGELOG.md",
     "NOTICE.md",
