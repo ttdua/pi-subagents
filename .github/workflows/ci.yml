@@ -17,6 +17,7 @@ jobs:
         with:
           node-version: 22
       - run: bun install --frozen-lockfile
+      - run: bun run lint
       - run: bun run check
       - run: bun run test
       - run: bun run verify:public-types
