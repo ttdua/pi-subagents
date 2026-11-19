@@ -15,8 +15,8 @@
  * extensions did or did not install.
  */
 
-import { enterChildSession, leaveChildSession } from "#src/seams/child-sessions";
 import type { TurnBudget } from "#src/lifecycle/turn-limits";
+import { enterChildSession, leaveChildSession } from "#src/seams/child-sessions";
 import type { EffectiveFacts, PublishedLaunchIdentity } from "#src/seams/identity";
 import type { ContextMode } from "#src/types";
 

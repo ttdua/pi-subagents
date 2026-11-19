@@ -4,7 +4,7 @@
  * global agent directories. Allowlist scenarios run the real
  * `createSubagentSession` with only the SDK session factory stubbed.
  */
-import { readFileSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -19,11 +19,11 @@ import {
 	blockedToolCount,
 	finalToolNames,
 } from "#src/seams/registry";
+import type { AgentTypeSnapshot } from "#src/service/service";
+import { SubagentsServiceAdapter } from "#src/service/service-adapter";
 import {
 	builtinExtensionsFor,
 } from "#src/session/builtin-extensions";
-import type { AgentTypeSnapshot } from "#src/service/service";
-import { SubagentsServiceAdapter } from "#src/service/service-adapter";
 import { captureWarn } from "#test/helpers/capture-warn";
 import { STUB_SNAPSHOT } from "#test/helpers/stub-ctx";
 import {

@@ -3,11 +3,11 @@ import { afterEach, beforeEach, describe, expect, expectTypeOf, it, vi } from "v
 import { AgentTypeRegistry } from "#src/config/agent-types";
 import type { AgentConfig } from "#src/types";
 import {
+  buildInvocationTags,
   formatRunDuration,
   formatSessionTokens,
-  getDisplayName,
-  buildInvocationTags,
   getContextLabel,
+  getDisplayName,
   modelLabel,
   type Theme,
 } from "#src/ui/display";

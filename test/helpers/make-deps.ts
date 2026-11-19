@@ -1,7 +1,6 @@
 import { vi } from "vitest";
 import { AgentTypeRegistry } from "#src/config/agent-types";
 import type { ParentSnapshot } from "#src/lifecycle/parent-snapshot";
-import type { ContextMode } from "#src/types";
 import type { Subagent } from "#src/lifecycle/subagent";
 import type { ResumeRefusalReason } from "#src/lifecycle/subagent-manager";
 import {
@@ -9,10 +8,11 @@ import {
 	type AgentToolRuntime,
 	type AgentToolSettings,
 } from "#src/tools/agent-tool";
+import type { ContextMode } from "#src/types";
+import { registryWithGeneral } from "#test/helpers/make-registry";
 import { makeModel } from "./make-model";
 import { createTestSubagent, type TestSubagentOptions } from "./make-subagent";
 import { STUB_SNAPSHOT } from "./stub-ctx";
-import { registryWithGeneral } from "#test/helpers/make-registry";
 
 /** Minimal registry with no user agents — sufficient for tool tests that don't exercise agent-type lookup. */
 const defaultRegistry = registryWithGeneral(() => new Map());

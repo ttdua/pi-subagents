@@ -13,8 +13,8 @@ import { type Terminal, TuiAltScreen, TuiMainScreen } from "@earendil-works/pi-t
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { SubagentManager } from "#src/lifecycle/subagent-manager";
 import { AgentWidget, type UICtx } from "#src/ui/agent-widget";
-import { createTestSubagent } from "#test/helpers/make-subagent";
 import { registryWithGeneral } from "#test/helpers/make-registry";
+import { createTestSubagent } from "#test/helpers/make-subagent";
 
 /** A `Terminal` that reports fixed dimensions and discards every write. */
 function fakeTerminal(columns: number, rows: number): Terminal {

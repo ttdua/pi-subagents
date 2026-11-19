@@ -19,8 +19,8 @@ import {
 } from "#src/ui/session-navigation";
 import { openTranscript, type PaneKeys, SessionNavigatorHandler, type SessionNavigatorParams, TranscriptPane } from "#src/ui/session-navigator";
 import { makeNavigable } from "#test/helpers/make-navigable";
-import { fakeSource, mockTui } from "#test/helpers/transcript-fixtures";
 import { registryWithGeneral } from "#test/helpers/make-registry";
+import { fakeSource, mockTui } from "#test/helpers/transcript-fixtures";
 
 const registry = registryWithGeneral(() => new Map());
 
@@ -702,7 +702,7 @@ describe("openTranscript", () => {
   }
 
   const paneOf = (ui: ReturnType<typeof makeUI>): Component =>
-    (ui.custom.mock.calls.at(-1)?.[0] as Factory)(mockTui(), ansiTheme(), keysWith(), vi.fn());
+    (ui.custom.mock.calls.at(-1)![0] as Factory)(mockTui(), ansiTheme(), keysWith(), vi.fn());
 
   const entryFor = (record: ReturnType<typeof makeNavigable>) => {
     const entry = navigationEntryFor(record, registry);

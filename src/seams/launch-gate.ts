@@ -8,7 +8,6 @@
 
 import type { Model } from "@earendil-works/pi-ai";
 import { debugLog, debugNote } from "#src/debug";
-import { excludedPackageUnion } from "#src/session/package-exclusions";
 import { applyAdjustment } from "#src/seams/launch-plan";
 import type { LaunchPolicySlot } from "#src/seams/launch-policy";
 import {
@@ -23,6 +22,7 @@ import type {
 	LaunchRequest,
 } from "#src/service/service";
 import { type ModelRegistry, resolveForkThinking, resolveModel } from "#src/session/model-resolver";
+import { excludedPackageUnion } from "#src/session/package-exclusions";
 import type { AgentConfig, ContextMode, ThinkingLevel } from "#src/types";
 
 /** What the parent session offers a launch, read fresh for each launch. */

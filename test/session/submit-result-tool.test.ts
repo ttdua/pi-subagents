@@ -1,11 +1,11 @@
 import { validateToolArguments } from "@earendil-works/pi-ai";
 import { describe, expect, it, vi } from "vitest";
-import {
-	SubmitResultTool,
-	type StructuredResultSink,
-} from "#src/session/submit-result-tool";
 import { SubagentRun } from "#src/lifecycle/subagent-run";
 import type { ResultSchema } from "#src/service/service";
+import {
+	type StructuredResultSink,
+	SubmitResultTool,
+} from "#src/session/submit-result-tool";
 import { STUB_CTX } from "#test/helpers/stub-ctx";
 
 const STATUS_SCHEMA: ResultSchema = {

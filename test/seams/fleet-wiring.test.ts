@@ -3,10 +3,11 @@
  * settings switch, the input listener and shutdown. Only the SDK session
  * factory is replaced.
  */
+
+import { EventEmitter } from "node:events";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { EventEmitter } from "node:events";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("#src/lifecycle/create-subagent-session", async () => {

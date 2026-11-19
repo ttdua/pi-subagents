@@ -1,6 +1,6 @@
 import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Value } from "typebox/value";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DeprecationWarnings, defaultDeprecationWarnings } from "#src/config/deprecations";
 import { AgentTool } from "#src/tools/agent-tool";
 import {
@@ -9,9 +9,9 @@ import {
 	mockResumeRefusal,
 	mockResumeStart,
 } from "#test/helpers/make-deps";
+import { registryWithGeneral } from "#test/helpers/make-registry";
 import { createTestSubagent } from "#test/helpers/make-subagent";
 import { textOf } from "#test/helpers/text-of";
-import { registryWithGeneral } from "#test/helpers/make-registry";
 
 function makeCtx(overrides: Record<string, unknown> = {}) {
 	return {

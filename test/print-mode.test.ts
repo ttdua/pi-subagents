@@ -1,7 +1,8 @@
-import { afterAll, afterEach, describe, expect, it, vi } from "vitest";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { afterAll, afterEach, describe, expect, it, vi } from "vitest";
+
 vi.mock("#src/lifecycle/create-subagent-session", async () => {
   const actual = await vi.importActual<typeof import("#src/lifecycle/create-subagent-session")>(
     "#src/lifecycle/create-subagent-session",

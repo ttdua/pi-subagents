@@ -1,8 +1,8 @@
 import type { AgentConfigLookup } from "#src/config/agent-types";
 import type { TurnBudget } from "#src/lifecycle/turn-limits";
+import { getLifetimeTotal, type LifetimeUsage } from "#src/lifecycle/usage";
 import type { ToolFacts } from "#src/seams/identity";
 import type { ContextMode, ThinkingLevel } from "#src/types";
-import { getLifetimeTotal, type LifetimeUsage } from "#src/lifecycle/usage";
 import { type AgentDetails, formatTokens, getContextLabel, type ModelIdentity, modelLabel } from "#src/ui/display";
 
 /** Build AgentDetails from a base + record-specific fields. */

@@ -28,8 +28,8 @@ import {
 } from "#src/lifecycle/turn-limits";
 import { getSessionContextPercent, type SessionStatsLike } from "#src/lifecycle/usage";
 import { extractText } from "#src/session/context";
-import { SUBMIT_RESULT_TOOL_NAME } from "#src/session/submit-result-tool";
 import { getAgentConversation } from "#src/session/conversation";
+import { SUBMIT_RESULT_TOOL_NAME } from "#src/session/submit-result-tool";
 import type { SessionMessage, ThinkingLevel } from "#src/types";
 
 /** Outcome of one turn loop. */
@@ -172,7 +172,7 @@ export class SubagentSession {
     const session = this._session;
     const boundary = new TurnBoundary(tracker);
     const unsubTurns = this.enforceTurnBudget(tracker, boundary, opts.onTurnBudget, opts.onSubmitAttempt);
-    const restoreFinishTurn = this.endRunAtTurnBoundary(tracker, boundary, opts.hasStructuredResult);
+    const restoreFinishTurn = this.endRunAtTurnBoundary(boundary, opts.hasStructuredResult);
     const collector = collectResponseText(session);
     const cleanupAbort = forwardAbortSignal(session, opts.signal);
 
@@ -244,7 +244,6 @@ export class SubagentSession {
    * (`aborted`); queued messages stay queued, as on any Pi abort.
    */
   private endRunAtTurnBoundary(
-    tracker: TurnBudgetTracker,
     boundary: TurnBoundary,
     hasResult: (() => boolean) | undefined,
   ): () => void {

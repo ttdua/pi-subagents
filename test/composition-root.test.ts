@@ -6,7 +6,7 @@
  * `test/session/provider-inheritance.test.ts`, but those tests pass whether or
  * not the root calls it — only this file fails if the wiring is removed.
  */
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";

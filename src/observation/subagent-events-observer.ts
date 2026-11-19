@@ -1,8 +1,8 @@
 import type { SubagentManagerObserver } from "#src/lifecycle/subagent-manager";
 import type { RunKind } from "#src/lifecycle/subagent-run";
 import { buildEventData, type NotificationSystem } from "#src/observation/notification";
-import { launchFields } from "#src/seams/identity";
 import { SUBAGENT_RECORD_ENTRY, toPersistedRecord } from "#src/persisted-record";
+import { launchFields } from "#src/seams/identity";
 import type { CompactionInfo, Subagent } from "#src/types";
 
 /** Emit callback — a subset of `pi.events.emit`. */

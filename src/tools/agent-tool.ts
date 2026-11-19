@@ -2,8 +2,8 @@ import type { AgentToolResult, ExtensionContext, ToolRenderResultOptions } from 
 import { defineTool } from "@earendil-works/pi-coding-agent";
 import { Text } from "@earendil-works/pi-tui";
 import { Type } from "typebox";
-import type { DeprecationWarnings } from "#src/config/deprecations";
 import { AgentTypeRegistry } from "#src/config/agent-types";
+import type { DeprecationWarnings } from "#src/config/deprecations";
 import type { ParentSnapshot } from "#src/lifecycle/parent-snapshot";
 import type {
 	AgentSpawnConfig,

@@ -10,7 +10,7 @@
 
 import type { ToolExposure, ToolInfo } from "@earendil-works/pi-coding-agent";
 import { debugLog, debugNote } from "#src/debug";
-import { ORCHESTRATION_TOOLS, type ForkGuardState } from "#src/lifecycle/fork-guard";
+import { type ForkGuardState, ORCHESTRATION_TOOLS } from "#src/lifecycle/fork-guard";
 
 /** Exposures whose active tools Pi declares to the model. */
 const MODEL_CALLABLE: ReadonlySet<ToolExposure> = new Set([

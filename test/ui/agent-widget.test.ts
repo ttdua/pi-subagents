@@ -5,8 +5,8 @@ import type { SubagentManager } from "#src/lifecycle/subagent-manager";
 import type { CompactionInfo } from "#src/types";
 import { AgentWidget, assembleWidgetState, type UICtx } from "#src/ui/agent-widget";
 import { makeModel } from "#test/helpers/make-model";
-import { createTestSubagent, makeStubExecution } from "#test/helpers/make-subagent";
 import { registryWithGeneral } from "#test/helpers/make-registry";
+import { createTestSubagent, makeStubExecution } from "#test/helpers/make-subagent";
 
 // Minimal agent fixture — only the three fields AgentSummary requires.
 function makeAgent(overrides: { id?: string; status?: string; completedAt?: number } = {}) {

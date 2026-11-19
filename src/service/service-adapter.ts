@@ -10,14 +10,15 @@ import { getAgentDir } from "@earendil-works/pi-coding-agent";
 import { type DeprecationWarnings, defaultDeprecationWarnings } from "#src/config/deprecations";
 import { resolveContext } from "#src/config/invocation-config";
 import { parseThinkingLevel, thinkingLevelError } from "#src/config/thinking-level";
+import type { ParentSnapshot } from "#src/lifecycle/parent-snapshot";
+import type { AgentSpawnConfig, ResumeCallOptions, ResumeOutcome } from "#src/lifecycle/subagent-manager";
+import type { RunOutcome } from "#src/lifecycle/subagent-run";
+import type { WorkspaceProvider } from "#src/lifecycle/workspace";
 import { lookupChildSession } from "#src/seams/child-sessions";
 import { parseLaunchMetadata } from "#src/seams/launch-metadata";
 import { defaultLaunchResourcesIO, parseLaunchResources } from "#src/seams/launch-resources";
-import { parseResultSchema } from "#src/seams/result-schema";
-import type { ParentSnapshot } from "#src/lifecycle/parent-snapshot";
-import type { AgentSpawnConfig, ResumeCallOptions, ResumeOutcome } from "#src/lifecycle/subagent-manager";
-import type { WorkspaceProvider } from "#src/lifecycle/workspace";
 import type { AgentTypeCatalog } from "#src/seams/registry";
+import { parseResultSchema } from "#src/seams/result-schema";
 import type {
   AgentTypeSnapshot,
   ChildSessionInfo,
@@ -29,7 +30,6 @@ import type {
   SubagentsService,
   WaitOptions,
 } from "#src/service/service";
-import type { RunOutcome } from "#src/lifecycle/subagent-run";
 import type { ModelRegistry } from "#src/session/model-resolver";
 import type { ContextMode, SessionContext, Subagent, ThinkingLevel } from "#src/types";
 

@@ -3,8 +3,8 @@ import type { AgentConfigLookup } from "#src/config/agent-types";
 import type { SubagentManager } from "#src/lifecycle/subagent-manager";
 import type { SubagentStatus } from "#src/lifecycle/subagent-state";
 import type { Theme } from "#src/ui/display";
-import type { FleetAgent } from "#src/ui/fleet-roster";
 import { FleetList, type FleetUI, type FleetWidgetFactory } from "#src/ui/fleet-list";
+import type { FleetAgent } from "#src/ui/fleet-roster";
 import type { openTranscript } from "#src/ui/session-navigator";
 import { makeNavigable } from "#test/helpers/make-navigable";
 

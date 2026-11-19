@@ -3,10 +3,6 @@
  */
 
 import { BUILTIN_TOOL_NAMES } from "#src/config/agent-types";
-import {
-	LOCKABLE_FIELDS,
-	type LockableField,
-} from "#src/config/invocation-config";
 import { ORCHESTRATION_TOOLS } from "#src/lifecycle/fork-guard";
 import { lockedFields } from "#src/seams/locked-launch";
 import { finalToolNames, snapshotOf } from "#src/seams/registry";
