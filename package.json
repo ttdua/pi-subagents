@@ -68,7 +68,7 @@
     "verify:public-types": "bash scripts/verify-public-types.sh",
     "test": "vitest run",
     "test:watch": "vitest",
-    "lint:md": "rumdl check *.md docs/**/*.md",
+    "lint:md": "rumdl check .",
     "lint": "biome check ."
   },
   "devDependencies": {

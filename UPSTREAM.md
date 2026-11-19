@@ -4,7 +4,7 @@ This repository is a fork of `@gotgenes/pi-subagents`. It started as a vendored 
 
 ## Upstream
 
-- Repository: `gotgenes/pi-packages` (https://github.com/gotgenes/pi-packages)
+- Repository: `gotgenes/pi-packages` (<https://github.com/gotgenes/pi-packages>)
 - Path: `packages/pi-subagents`
 - Tag: `pi-subagents-v25.0.5`
 - Commit: `a4dd5f7611a2d7687a50899e99be7bd727ddc2b0`
@@ -13,7 +13,7 @@ This repository is a fork of `@gotgenes/pi-subagents`. It started as a vendored 
 
 "Upstream split commit" is the `git subtree split --prefix packages/pi-subagents` commit of the tag. To sync a newer upstream release, run `scripts/sync-upstream.sh <version>` (see the README's "Syncing upstream").
 
-Outside the table below, the fork also changes repository files that upstream kept at the monorepo root: `biome.json` (standalone config), `.gitignore`, `bun.lock`, `.github/workflows/ci.yml`, `README.md` (fork notes, install from git), `AGENTS.md`, `CHANGELOG.md` (fork entries), `NOTICE.md` and `UPSTREAM.md`. `.prettierignore` drops the monorepo wording. Upstream development artefacts are pruned on purpose: `docs/plans/`, `docs/retro/`, `docs/architecture/history/`, `docs/fallow-snapshot.json` and `.pi/agents/auditor.md` (an upstream sync that brings them back as modify/delete conflicts resolves by deleting them again). `docs/` is rewritten for the fork and not listed per file. `test/upstream.test.ts` fails when a changed path under `src/`, `test/`, `agents/`, `scripts/`, `dist/`, or `package.json`/`tsconfig.json`/`rollup.dts.config.mjs`, has no row in the table, or another changed file outside `docs/` is missing from this paragraph. Imports in upstream `src/` and `test/` files are sorted by biome's `organizeImports` (formatting only, not listed per file).
+Outside the table below, the fork also changes repository files that upstream kept at the monorepo root: `biome.json` (standalone config), `.gitignore`, `bun.lock`, `.github/workflows/ci.yml`, `README.md` (fork notes, install from git), `AGENTS.md`, `CHANGELOG.md` (fork entries), `NOTICE.md` and `UPSTREAM.md`. `.prettierignore` drops the monorepo wording. `.rumdl.toml` scopes markdown lint to the docs this fork maintains (upstream's lived at the monorepo root). Upstream development artefacts are pruned on purpose: `docs/plans/`, `docs/retro/`, `docs/architecture/history/`, `docs/fallow-snapshot.json` and `.pi/agents/auditor.md` (an upstream sync that brings them back as modify/delete conflicts resolves by deleting them again). `docs/` is rewritten for the fork and not listed per file. `test/upstream.test.ts` fails when a changed path under `src/`, `test/`, `agents/`, `scripts/`, `dist/`, or `package.json`/`tsconfig.json`/`rollup.dts.config.mjs`, has no row in the table, or another changed file outside `docs/` is missing from this paragraph. Imports in upstream `src/` and `test/` files are sorted by biome's `organizeImports` (formatting only, not listed per file).
 
 ## Local changes
 
