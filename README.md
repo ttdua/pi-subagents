@@ -731,11 +731,10 @@ To see the full diff: `git diff e6b408e HEAD` (`e6b408e` is upstream's `chore(re
 ### Syncing upstream
 
 ```bash
-git clone https://github.com/gotgenes/pi-packages.git /tmp/pi-packages
-git -C /tmp/pi-packages subtree split --prefix packages/pi-subagents pi-subagents-v<version> -b upstream-split
-git fetch /tmp/pi-packages upstream-split
-git merge FETCH_HEAD
+scripts/sync-upstream.sh <version>   # e.g. 25.0.5
 ```
+
+The script clones `gotgenes/pi-packages`, splits `packages/pi-subagents` at `pi-subagents-v<version>` with `git subtree split`, and merges the split into the current branch. It lists conflicted files if the merge stops. Afterwards, update the tag, commit and upstream split commit in `UPSTREAM.md`, add rows for any new local edits, and run `bun run test`.
 
 ## Relationship to upstream
 

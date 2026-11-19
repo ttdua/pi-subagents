@@ -11,9 +11,9 @@ This repository is a fork of `@gotgenes/pi-subagents`. It started as a vendored 
 - Upstream split commit: `e6b408e8c5a1036c00a8b5f233549cedcb83f77c` (in this repository's history; `git diff e6b408e HEAD` shows every local change)
 - License: MIT, see `LICENSE` (unchanged)
 
-"Upstream split commit" is the `git subtree split --prefix packages/pi-subagents` commit of the tag. To sync a newer upstream release, split the new tag the same way and merge it (see the README's "Syncing upstream").
+"Upstream split commit" is the `git subtree split --prefix packages/pi-subagents` commit of the tag. To sync a newer upstream release, run `scripts/sync-upstream.sh <version>` (see the README's "Syncing upstream").
 
-Outside the table below, the fork also changes repository files that upstream kept at the monorepo root: `biome.json` (standalone config), `.gitignore`, `bun.lock`, `.github/workflows/ci.yml`, `README.md` (fork notes, install from git) and `AGENTS.md`. Imports in upstream `src/` and `test/` files are sorted by biome's `organizeImports` (formatting only, not listed per file).
+Outside the table below, the fork also changes repository files that upstream kept at the monorepo root: `biome.json` (standalone config), `.gitignore`, `bun.lock`, `.github/workflows/ci.yml`, `README.md` (fork notes, install from git), `AGENTS.md`, `CHANGELOG.md` (fork entries), `NOTICE.md` and `UPSTREAM.md`. `docs/` is rewritten for the fork and not listed per file. `test/upstream.test.ts` fails when a changed path under `src/`, `test/`, `agents/`, `scripts/`, `dist/`, or `package.json`/`tsconfig.json`, has no row in the table, or another changed file outside `docs/` is missing from this paragraph. Imports in upstream `src/` and `test/` files are sorted by biome's `organizeImports` (formatting only, not listed per file).
 
 ## Local changes
 
@@ -225,4 +225,6 @@ Outside the table below, the fork also changes repository files that upstream ke
 | `test/observation/notification.test.ts` | edit | Tests that structured fields appear on the payloads only when set. |
 | `test/persisted-record.test.ts` | edit | Tests that structured fields are not persisted. |
 | `test/seams/launch-policy.test.ts` | edit | `submit_result` excluded from `parentTools` and protected from `removeTools`. |
+| `scripts/sync-upstream.sh` | add | Split an upstream tag with `git subtree split`, merge it, list conflicts and print the `UPSTREAM.md` values to update. |
+| `test/upstream.test.ts` | add | Guard: every path changed since the upstream split commit has a row here; `LICENSE` is upstream's; `NOTICE.md` credits; `verify:public-types` probes the `package.json` name. |
 | `test/service/service-adapter.test.ts` | edit | Tests for schema refusals before session and policy, and the record snapshot fields. |
