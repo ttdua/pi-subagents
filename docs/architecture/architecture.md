@@ -35,9 +35,9 @@ This is the full inventory, with the decision record or design principle each re
 
 | Non-goal                                                                      | Rests on                                                                                             |
 | ----------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| Time-based scheduling (cron / interval / one-shot dispatch)                   | Design principle 4; `history/phase-2-remove-scheduling.md`                                           |
+| Time-based scheduling (cron / interval / one-shot dispatch)                   | Design principle 4; [upstream phase-2-remove-scheduling.md](https://github.com/gotgenes/pi-packages/blob/pi-subagents-v25.0.5/packages/pi-subagents/docs/architecture/history/phase-2-remove-scheduling.md)                                           |
 | Ad-hoc cross-extension event RPC (`subagents:rpc:*`)                          | Design principle 3; §"What the core dropped"                                                         |
-| Group-join / consolidated completion notifications                            | §"What the core dropped"; `history/phase-3-remove-rpc-groupjoin.md`                                  |
+| Group-join / consolidated completion notifications                            | §"What the core dropped"; [upstream phase-3-remove-rpc-groupjoin.md](https://github.com/gotgenes/pi-packages/blob/pi-subagents-v25.0.5/packages/pi-subagents/docs/architecture/history/phase-3-remove-rpc-groupjoin.md)                                  |
 | Model-scope enforcement (an `enabledModels` allowlist in the core)            | `docs/comparison-with-upstream.md` only — the weakest entry here                                     |
 | Per-agent tool restriction policy (`disallowed_tools`, a built-in denylist)   | [ADR-0002](../decisions/0002-extensions-on-a-minimal-core.md); §"Child tool selection"               |
 | Widening a child's tool allowlist with capability tools on the agent's behalf | §"Child tool selection"; operator position on the additive-key case                                  |
@@ -346,9 +346,7 @@ sequenceDiagram
 
 The extension's source files are organized into domain directories — `config/`, `session/`, `lifecycle/`, `observation/`, `service/`, `tools/`, `ui/`, and `handlers/` — plus a handful of root-level entry-point and shared modules.
 
-Those directories are fallow boundary **zones** (`boundaries` in the repo-root `.fallowrc.json`), one zone per directory plus a `pi-subagents/core` zone for the root modules.
-Each zone's `allow` list is the set of zones it imported when the zones were encoded, so the baseline reports zero violations and a **new** cross-zone edge is a finding (`boundary-violation`, severity `warn`, reported by `fallow dead-code` and `fallow audit` without failing either) and a `fallow decision-surface` `coupling-boundary` question in review.
-Run `pnpm --silent fallow guard <file>` before adding a cross-directory import to see what the file's zone may import; when the new edge is intended, extend that zone's `allow` list in the same commit and say why in the commit body.
+Upstream encoded those directories as `fallow` boundary zones in its monorepo-root `.fallowrc.json`; this fork does not run `fallow`, so treat a new cross-directory import as a design change and say why in the commit body.
 
 The zones follow one order: `lifecycle/` is the core, `observation/` reacts to it, and `ui/` renders both.
 So `lifecycle/` imports neither `observation/` nor `ui/`, and `observation/` imports `lifecycle/` but not `ui/`.
@@ -807,7 +805,7 @@ That method — testability friction as a boundary probe, with its limits — is
 
 Recompute `Total LOC` with `find src -name '*.ts' | wc -l` and `cat $(find src -name '*.ts') | wc -l` — it counts `src/` only, so `fallow health`'s package-wide total is the wrong source.
 Every other row is a `fallow health` field.
-The values as of the last phase close are also committed as a machine-readable snapshot at `docs/fallow-snapshot.json`, written by `pnpm --silent fallow health --save-snapshot packages/pi-subagents/docs/fallow-snapshot.json --workspace @gotgenes/pi-subagents`; `fallow health --trend` reads it for per-metric deltas.
+The values come from upstream's `fallow` setup at the last phase close; this fork does not run `fallow`.
 
 ### Dependency bag inventory
 
@@ -1293,32 +1291,32 @@ Every Track A step rewrites `lifecycle/subagent.ts`, so those steps sequence rat
 ## Refactoring history
 
 The architecture above is the product of twenty-one completed improvement phases; Phase 6 (UI extraction to a separate package) was folded into [ADR-0004] rather than executed.
-Each phase's findings, numbered plan, dependency diagram, and health metrics are preserved in a per-phase history file under [`history/`](history/).
+Each phase's findings, numbered plan, dependency diagram, and health metrics are preserved in a per-phase history file under upstream's [`history/`](https://github.com/gotgenes/pi-packages/tree/pi-subagents-v25.0.5/packages/pi-subagents/docs/architecture/history), at the tag this fork was split from; this fork does not carry them.
 
 | Phase | Theme                                                        | History                                                                                        |
 | ----- | ------------------------------------------------------------ | ---------------------------------------------------------------------------------------------- |
-| 1     | Export SubagentsService API boundary                         | [phase-1-api-boundary.md](history/phase-1-api-boundary.md)                                     |
-| 2     | Remove scheduling subsystem                                  | [phase-2-remove-scheduling.md](history/phase-2-remove-scheduling.md)                           |
-| 3     | Remove group-join, RPC; replace output-file                  | [phase-3-remove-rpc-groupjoin.md](history/phase-3-remove-rpc-groupjoin.md)                     |
-| 4     | Implement and publish SubagentsService                       | [phase-4-implement-service.md](history/phase-4-implement-service.md)                           |
-| 5     | Decompose index.ts                                           | [phase-5-decompose-index.md](history/phase-5-decompose-index.md)                               |
+| 1     | Export SubagentsService API boundary                         | [phase-1-api-boundary.md](https://github.com/gotgenes/pi-packages/blob/pi-subagents-v25.0.5/packages/pi-subagents/docs/architecture/history/phase-1-api-boundary.md)                                     |
+| 2     | Remove scheduling subsystem                                  | [phase-2-remove-scheduling.md](https://github.com/gotgenes/pi-packages/blob/pi-subagents-v25.0.5/packages/pi-subagents/docs/architecture/history/phase-2-remove-scheduling.md)                           |
+| 3     | Remove group-join, RPC; replace output-file                  | [phase-3-remove-rpc-groupjoin.md](https://github.com/gotgenes/pi-packages/blob/pi-subagents-v25.0.5/packages/pi-subagents/docs/architecture/history/phase-3-remove-rpc-groupjoin.md)                     |
+| 4     | Implement and publish SubagentsService                       | [phase-4-implement-service.md](https://github.com/gotgenes/pi-packages/blob/pi-subagents-v25.0.5/packages/pi-subagents/docs/architecture/history/phase-4-implement-service.md)                           |
+| 5     | Decompose index.ts                                           | [phase-5-decompose-index.md](https://github.com/gotgenes/pi-packages/blob/pi-subagents-v25.0.5/packages/pi-subagents/docs/architecture/history/phase-5-decompose-index.md)                               |
 | 6     | Extract UI to separate package                               | Superseded by [ADR-0004]                                                                       |
-| 7     | Encapsulation and dependency narrowing                       | [phase-7-encapsulation.md](history/phase-7-encapsulation.md)                                   |
-| 8     | Testability, display extraction, menu decomposition          | [phase-8-testability.md](history/phase-8-testability.md)                                       |
-| 9     | Observation consolidation, ctx elimination                   | [phase-9-observation-ctx.md](history/phase-9-observation-ctx.md)                               |
-| 10    | Domain organization, bag decomposition, complexity           | [phase-10-structural-decomposition.md](history/phase-10-structural-decomposition.md)           |
-| 11    | Closure factories to classes                                 | [phase-11-closure-to-class.md](history/phase-11-closure-to-class.md)                           |
-| 12    | Complexity reduction and test fixture extraction             | [phase-12-complexity-test-fixtures.md](history/phase-12-complexity-test-fixtures.md)           |
-| 13    | Remaining structural smells                                  | [phase-13-remaining-smells.md](history/phase-13-remaining-smells.md)                           |
-| 14    | Strip policy from core                                       | [phase-14-strip-policy.md](history/phase-14-strip-policy.md)                                   |
-| 15    | Domain model evolution                                       | [phase-15-domain-model-evolution.md](history/phase-15-domain-model-evolution.md)               |
-| 16    | Invert dependencies (extensions on a minimal core)           | [phase-16-invert-dependencies.md](history/phase-16-invert-dependencies.md)                     |
-| 17    | Core consolidation                                           | [phase-17-core-consolidation.md](history/phase-17-core-consolidation.md)                       |
-| 18    | Reconsider UI (first principles)                             | [phase-18-reconsider-ui.md](history/phase-18-reconsider-ui.md)                                 |
-| 19    | Implement ADR-0004 UI decisions                              | [phase-19-implement-ui-decisions.md](history/phase-19-implement-ui-decisions.md)               |
-| 20    | Result delivery extraction and boundary cleanup              | [phase-20-result-delivery.md](history/phase-20-result-delivery.md)                             |
-| 21    | Classification predicates, resume completion, model boundary | [phase-21-classification-model-boundary.md](history/phase-21-classification-model-boundary.md) |
-| 22    | Front-door contract parity and delivery fixes                | [phase-22-front-door-delivery.md](history/phase-22-front-door-delivery.md)                     |
+| 7     | Encapsulation and dependency narrowing                       | [phase-7-encapsulation.md](https://github.com/gotgenes/pi-packages/blob/pi-subagents-v25.0.5/packages/pi-subagents/docs/architecture/history/phase-7-encapsulation.md)                                   |
+| 8     | Testability, display extraction, menu decomposition          | [phase-8-testability.md](https://github.com/gotgenes/pi-packages/blob/pi-subagents-v25.0.5/packages/pi-subagents/docs/architecture/history/phase-8-testability.md)                                       |
+| 9     | Observation consolidation, ctx elimination                   | [phase-9-observation-ctx.md](https://github.com/gotgenes/pi-packages/blob/pi-subagents-v25.0.5/packages/pi-subagents/docs/architecture/history/phase-9-observation-ctx.md)                               |
+| 10    | Domain organization, bag decomposition, complexity           | [phase-10-structural-decomposition.md](https://github.com/gotgenes/pi-packages/blob/pi-subagents-v25.0.5/packages/pi-subagents/docs/architecture/history/phase-10-structural-decomposition.md)           |
+| 11    | Closure factories to classes                                 | [phase-11-closure-to-class.md](https://github.com/gotgenes/pi-packages/blob/pi-subagents-v25.0.5/packages/pi-subagents/docs/architecture/history/phase-11-closure-to-class.md)                           |
+| 12    | Complexity reduction and test fixture extraction             | [phase-12-complexity-test-fixtures.md](https://github.com/gotgenes/pi-packages/blob/pi-subagents-v25.0.5/packages/pi-subagents/docs/architecture/history/phase-12-complexity-test-fixtures.md)           |
+| 13    | Remaining structural smells                                  | [phase-13-remaining-smells.md](https://github.com/gotgenes/pi-packages/blob/pi-subagents-v25.0.5/packages/pi-subagents/docs/architecture/history/phase-13-remaining-smells.md)                           |
+| 14    | Strip policy from core                                       | [phase-14-strip-policy.md](https://github.com/gotgenes/pi-packages/blob/pi-subagents-v25.0.5/packages/pi-subagents/docs/architecture/history/phase-14-strip-policy.md)                                   |
+| 15    | Domain model evolution                                       | [phase-15-domain-model-evolution.md](https://github.com/gotgenes/pi-packages/blob/pi-subagents-v25.0.5/packages/pi-subagents/docs/architecture/history/phase-15-domain-model-evolution.md)               |
+| 16    | Invert dependencies (extensions on a minimal core)           | [phase-16-invert-dependencies.md](https://github.com/gotgenes/pi-packages/blob/pi-subagents-v25.0.5/packages/pi-subagents/docs/architecture/history/phase-16-invert-dependencies.md)                     |
+| 17    | Core consolidation                                           | [phase-17-core-consolidation.md](https://github.com/gotgenes/pi-packages/blob/pi-subagents-v25.0.5/packages/pi-subagents/docs/architecture/history/phase-17-core-consolidation.md)                       |
+| 18    | Reconsider UI (first principles)                             | [phase-18-reconsider-ui.md](https://github.com/gotgenes/pi-packages/blob/pi-subagents-v25.0.5/packages/pi-subagents/docs/architecture/history/phase-18-reconsider-ui.md)                                 |
+| 19    | Implement ADR-0004 UI decisions                              | [phase-19-implement-ui-decisions.md](https://github.com/gotgenes/pi-packages/blob/pi-subagents-v25.0.5/packages/pi-subagents/docs/architecture/history/phase-19-implement-ui-decisions.md)               |
+| 20    | Result delivery extraction and boundary cleanup              | [phase-20-result-delivery.md](https://github.com/gotgenes/pi-packages/blob/pi-subagents-v25.0.5/packages/pi-subagents/docs/architecture/history/phase-20-result-delivery.md)                             |
+| 21    | Classification predicates, resume completion, model boundary | [phase-21-classification-model-boundary.md](https://github.com/gotgenes/pi-packages/blob/pi-subagents-v25.0.5/packages/pi-subagents/docs/architecture/history/phase-21-classification-model-boundary.md) |
+| 22    | Front-door contract parity and delivery fixes                | [phase-22-front-door-delivery.md](https://github.com/gotgenes/pi-packages/blob/pi-subagents-v25.0.5/packages/pi-subagents/docs/architecture/history/phase-22-front-door-delivery.md)                     |
 
 ### Structural refactoring issues
 
