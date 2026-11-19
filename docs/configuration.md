@@ -72,7 +72,7 @@ The provider also receives the **parent's** session id as its cache key; the for
 - **Fallback.** A call that asks for `fork` (including the [deprecated](#deprecated-names) fork flag, and a service `spawn` with `context: "fork"`) fails with `Cannot fork: the parent has no session to fork from.` when the parent has no session. A `fork` that came from an agent file runs `fresh` instead, and the run is labelled `fork → fresh`.
 - **Display.** A fork shows `fork` where a mode label used to be; a fallen-back run shows `fork → fresh`; a fresh run shows nothing.
 
-**When the cache holds.** The evidence run ([2026-11-18](../../../docs/evidence/2026-11-18-fork-cache.md)) measured a ratio of 0.92 on an OpenAI-compatible route for a same-model fork of a parent of at least 25 000 tokens, started within a minute of the parent's last request.
+**When the cache holds.** The evidence run ([2026-11-18](https://github.com/ttdua/pi-jev-pilot/blob/main/docs/evidence/2026-11-18-fork-cache.md)) measured a ratio of 0.92 on an OpenAI-compatible route for a same-model fork of a parent of at least 25 000 tokens, started within a minute of the parent's last request.
 A provider cache leaves about 2 150 tokens uncached even for an identical request, so a short parent cannot reach a high ratio. The Anthropic API was not measured.
 An extension that rewrites the system prompt in the child's `before_agent_start` ends the shared prefix.
 
@@ -129,7 +129,7 @@ All fields are optional — sensible defaults for everything.
 | `model`             | inherit parent | Model — `provider/modelId` or fuzzy name (`"haiku"`, `"sonnet"`)                                                                                                                                                                              |
 | `thinking`          | inherit        | off, minimal, low, medium, high, xhigh, max. An unrecognized value is dropped, and the agent inherits the parent's level                                                                                                                      |
 | `max_turns`         | unlimited      | Turn ceiling: the harness stops the agent after this many turns (minimum 2). `0` or omit for unlimited                                                                                                                                        |
-| `context`           | `fresh`        | `fresh` or `fork`. See [Context: fresh or fork](#context-fresh-or-fork)
+| `context`           | `fresh`        | `fresh` or `fork`. See [Context: fresh or fork](#context-fresh-or-fork) |
 | `run_in_background` | `false`        | Run in background by default                                                                                                                                                                                                                  |
 | `enabled`           | `true`         | Set to `false` to disable an agent (useful for hiding a default agent per-project)                                                                                                                                                            |
 | `inherit_skills`    | —              | `false` pins the child's skill catalog off: no inherited skills, and a fork is refused. Any other value is not pinned; a non-boolean writes a debug note |
