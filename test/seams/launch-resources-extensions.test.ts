@@ -5,7 +5,6 @@
  * package's module is never imported, so its top-level marker stays empty.
  */
 import {
-	appendFileSync,
 	mkdirSync,
 	mkdtempSync,
 	readFileSync,
@@ -62,10 +61,6 @@ describe("per-launch extension exclusion (real composition root)", () => {
 	let loopback: Awaited<ReturnType<typeof startLoopback>>;
 	let packs: { flow: string; sibling: string };
 	const events: { channel: string; data: any }[] = [];
-	const saved = {
-		agentDir: process.env.PI_CODING_AGENT_DIR,
-		cwd: process.cwd(),
-	};
 
 	function makePack(name: string, boot: string): string {
 		const dir = join(root, name);

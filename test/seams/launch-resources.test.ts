@@ -51,7 +51,6 @@ describe("parseLaunchResources", () => {
 		[{ cwd: 1 }, /cwd/],
 		[{ contextFiles: "no" }, /contextFiles/],
 	])("refuses wrong shapes %#", (input, rule) => {
-		// biome-ignore lint/suspicious/noExplicitAny: deliberately wrong shapes
 		expect(() => parseLaunchResources(input as any, io)).toThrow(rule);
 	});
 

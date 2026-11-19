@@ -395,7 +395,7 @@ describe("run start", () => {
 });
 
 describe("queued launches", () => {
-	async function queued(setup: (second: string) => void | Promise<void>) {
+	async function queued() {
 		let release!: () => void;
 		const hold = new Promise<void>((r) => {
 			release = r;
@@ -408,7 +408,7 @@ describe("queued launches", () => {
 	}
 
 	it("queued launch keeps its frozen resources", async () => {
-		const { h, release } = await queued(() => undefined);
+		const { h, release } = await queued();
 		const a = skill(dir("sa"), "a");
 		const paths = [a];
 		h.service.spawn("Explore", "one");
@@ -431,7 +431,7 @@ describe("queued launches", () => {
 			(file: string) => writeFileSync(file, "---\nname: a\n---\nBody\n"),
 		],
 	])("%s", async (_name, damage) => {
-		const { h, release } = await queued(() => undefined);
+		const { h, release } = await queued();
 		const file = skill(dir("sa"), "a");
 		h.service.spawn("Explore", "one");
 		const policy = vi.fn(() => undefined);
@@ -450,7 +450,7 @@ describe("queued launches", () => {
 	});
 
 	it("worktree removed while queued", async () => {
-		const { h, release } = await queued(() => undefined);
+		const { h, release } = await queued();
 		const wt = dir("wt");
 		h.service.spawn("Explore", "one");
 		const prepare = vi.fn(async () => undefined);

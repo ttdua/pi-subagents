@@ -25,7 +25,6 @@ function file(dir: string): string {
 	writeFileSync(f, "x");
 	return f;
 }
-// biome-ignore lint/suspicious/noExplicitAny: loader skill shape is wide; tests need only name and path
 const sk = (name: string, filePath: string): any => ({ name, filePath });
 
 beforeEach(() => {

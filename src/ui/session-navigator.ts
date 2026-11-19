@@ -304,7 +304,7 @@ export class TranscriptPane implements Component {
     const lines: string[] = [];
 
     // Rows span at most the width the host supplied: pi-tui rejects a wider one.
-    const fit = (content: string): string => truncateToWidth(content, width);
+    const fitToWidth = (content: string): string => truncateToWidth(content, width);
     const { model, thinkingLevel } = this.source.sessionModel();
     const paint = th.getThinkingBorderColor(thinkingLevel ?? "off");
 
@@ -314,7 +314,7 @@ export class TranscriptPane implements Component {
     if (this.autoScroll) this.scrollOffset = maxScroll;
     const visibleStart = Math.min(this.scrollOffset, maxScroll);
     const visible = this.content.slice(width, visibleStart, viewportHeight);
-    for (let i = 0; i < viewportHeight; i++) lines.push(fit(visible[i] ?? ""));
+    for (let i = 0; i < viewportHeight; i++) lines.push(fitToWidth(visible[i] ?? ""));
 
     const scrollPct =
       totalLines <= viewportHeight

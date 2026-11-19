@@ -702,7 +702,7 @@ describe("openTranscript", () => {
   }
 
   const paneOf = (ui: ReturnType<typeof makeUI>): Component =>
-    (ui.custom.mock.calls.at(-1)?.[0] as Factory)(mockTui(), ansiTheme(), keysWith(), vi.fn());
+    (ui.custom.mock.calls.at(-1)![0] as Factory)(mockTui(), ansiTheme(), keysWith(), vi.fn());
 
   const entryFor = (record: ReturnType<typeof makeNavigable>) => {
     const entry = navigationEntryFor(record, registry);
