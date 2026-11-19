@@ -1,5 +1,8 @@
 # Comparison with upstream
 
+> This document comes from upstream `@gotgenes/pi-subagents` and compares that package with `@tintinweb/pi-subagents`.
+> `@ttdua/pi-subagents` is a fork of `@gotgenes/pi-subagents`; its changes are listed in [`UPSTREAM.md`](../UPSTREAM.md).
+
 `@gotgenes/pi-subagents` began as a fork of [`tintinweb/pi-subagents`](https://github.com/tintinweb/pi-subagents) by [@tintinweb](https://github.com/tintinweb).
 The original design — autonomous subagent dispatch, the live widget, the conversation viewer, custom agent types — is the foundation everything here builds on.
 

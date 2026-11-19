@@ -1,6 +1,6 @@
 # Configuration
 
-`@gotgenes/pi-subagents` has two configuration surfaces: **agent definition files** that describe an agent type, and a **`subagents.json`** settings file that tunes the runtime.
+`@ttdua/pi-subagents` has two configuration surfaces: **agent definition files** that describe an agent type, and a **`subagents.json`** settings file that tunes the runtime.
 Neither is required — every field has a default.
 
 For the tools, commands, events, and service API, see the [README](../README.md).

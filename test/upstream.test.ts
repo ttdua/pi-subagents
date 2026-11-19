@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 
 const ROOT = join(import.meta.dirname, "..");
 const GUARDED_PREFIXES = ["src/", "test/", "agents/", "scripts/", "dist/"];
-const GUARDED_ROOT_FILES = new Set(["package.json", "tsconfig.json"]);
+const GUARDED_ROOT_FILES = new Set(["package.json", "tsconfig.json", "rollup.dts.config.mjs"]);
 const FORK_FILES_MARKER = "Outside the table below";
 
 const read = (path: string): string => readFileSync(join(ROOT, path), "utf8");

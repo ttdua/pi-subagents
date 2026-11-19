@@ -10,6 +10,7 @@ This document describes the architecture of the pi-subagents fork: a focused, co
 3. **Typed API boundary** — this package exports a `SubagentsService` interface and `Symbol.for()` accessors (`publishSubagentsService` / `getSubagentsService`).
    Consumers declare this package as an optional peer dependency and use dynamic import for compile-time types.
    The runtime bridge is `Symbol.for("@gotgenes/pi-subagents:service")` on `globalThis` — no separate API package.
+   The key keeps the upstream name so consumers find any compatible implementation, upstream or this fork.
 4. **No time-based scheduling** — cron-style timed dispatch (upstream's `schedule.ts` subsystem) is removed from the core (#52).
    Timed dispatch is a separate concern that any extension can implement by calling `spawn()` on the published API.
    The max-concurrent admission gate is not scheduling in this sense — concurrency management stays in core.
@@ -368,7 +369,7 @@ src/
 ├── persisted-record.ts             subagents:record session-entry contract (writer's builder, reader's parser)
 ├── settings.ts                     SettingsManager (persistent operational settings)
 ├── debug.ts                        debug logging utility
-├── layered-settings.ts             loadLayeredSettings helper (published as @gotgenes/pi-subagents/settings)
+├── layered-settings.ts             loadLayeredSettings helper (published as @ttdua/pi-subagents/settings)
 │
 ├── config/                         agent type definitions and resolution
 │   ├── agent-types.ts              AgentTypeRegistry class
@@ -470,7 +471,7 @@ It also reads the parent session's `subagents:record` entries (`persisted-record
 
 ```mermaid
 flowchart TD
-    subgraph core["@gotgenes/pi-subagents"]
+    subgraph core["@ttdua/pi-subagents"]
         direction TB
         exports["SubagentsService API<br/>publish / getSubagentsService<br/>SubagentRecord, SubagentStatus"]
         engine["Tools: subagent, get_subagent_result,<br/>steer_subagent<br/>SubagentManager, createSubagentSession, SubagentSession"]
@@ -545,7 +546,7 @@ It reaches the SDK as the `excludeTools` denylist, which Pi reapplies on every t
 
 ## SubagentsService
 
-The `SubagentsService` interface, accessor functions, and serializable types are exported from `@gotgenes/pi-subagents` via the `./service` export map entry.
+The `SubagentsService` interface, accessor functions, and serializable types are exported from `@ttdua/pi-subagents` via the `./service` export map entry.
 No separate API package is needed.
 
 Consumers declare this package as an optional peer dependency:
@@ -553,10 +554,10 @@ Consumers declare this package as an optional peer dependency:
 ```json
 {
   "peerDependencies": {
-    "@gotgenes/pi-subagents": ">=5.0.0"
+    "@ttdua/pi-subagents": ">=0.1.0"
   },
   "peerDependenciesMeta": {
-    "@gotgenes/pi-subagents": { "optional": true }
+    "@ttdua/pi-subagents": { "optional": true }
   }
 }
 ```
@@ -564,7 +565,7 @@ Consumers declare this package as an optional peer dependency:
 At runtime, consumers use dynamic import for type-safe access to the accessor functions:
 
 ```typescript
-const { getSubagentsService } = await import("@gotgenes/pi-subagents");
+const { getSubagentsService } = await import("@ttdua/pi-subagents");
 const svc = getSubagentsService();
 if (svc) {
   svc.spawn("Explore", "Check for stale TODOs");
@@ -573,6 +574,7 @@ if (svc) {
 
 Pi's extension loader creates a fresh `jiti` instance per extension with `moduleCache: false`, so module-scoped singletons don't survive across extensions.
 The accessor functions use `Symbol.for("@gotgenes/pi-subagents:service")` on `globalThis`, which is process-global by spec, to bridge this gap.
+The key keeps upstream's package name on purpose: consumers such as `@gotgenes/pi-subagents-worktrees` and `@ttdua/pi-jev-pilot` look up this one slot to find any compatible implementation, so renaming it would hide this fork's service from them.
 The dynamic import provides compile-time types; the `Symbol.for()` key is the actual runtime channel.
 
 ### Interface
@@ -1354,7 +1356,7 @@ Of the tracks recorded under Phase 21's deferred-work dispositions, [#482], [#60
 
 ## Relationship with upstream
 
-This fork (`@gotgenes/pi-subagents` in the [gotgenes/pi-packages] monorepo) is a hard fork of [tintinweb/pi-subagents].
+`@ttdua/pi-subagents` is a fork of `@gotgenes/pi-subagents` (in the [gotgenes/pi-packages] monorepo), itself a hard fork of [tintinweb/pi-subagents].
 The decomposition diverges materially from upstream's direction.
 
 The three upstream PRs (#71, #72, #73) remain open.

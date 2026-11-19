@@ -4,7 +4,7 @@
  * Consumers declare this package as an optional peer dependency and use
  * dynamic import to access the accessor functions:
  *
- *   const { getSubagentsService } = await import("@gotgenes/pi-subagents");
+ *   const { getSubagentsService } = await import("@ttdua/pi-subagents");
  *   const svc = getSubagentsService();
  *   svc?.spawn("explore", "Check for stale TODOs");
  */
@@ -452,6 +452,9 @@ export const SUBAGENT_EVENTS = {
 
 // ---- Accessor functions ----
 
+// Keeps the upstream name on purpose: consumers (`@gotgenes/pi-subagents-worktrees`,
+// `@ttdua/pi-jev-pilot`) look up this shared slot to find any compatible
+// implementation, upstream or this fork. Renaming it would hide the service from them.
 const SERVICE_KEY = Symbol.for("@gotgenes/pi-subagents:service");
 
 /** Publish the SubagentsService on globalThis for cross-extension access. */
