@@ -7,6 +7,8 @@ const ROOT = join(import.meta.dirname, "..");
 const GUARDED_PREFIXES = ["src/", "test/", "agents/", "scripts/", "dist/"];
 const GUARDED_ROOT_FILES = new Set(["package.json", "tsconfig.json", "rollup.dts.config.mjs"]);
 const FORK_FILES_MARKER = "Outside the table below";
+/** Fork-owned trees, described in the fork-files paragraph but not listed per file. */
+const FORK_TREES = ["docs/", "openspec/"];
 
 const read = (path: string): string => readFileSync(join(ROOT, path), "utf8");
 const git = (...args: string[]): string => execFileSync("git", args, { cwd: ROOT, encoding: "utf8" });
@@ -64,7 +66,7 @@ describe("UPSTREAM.md", () => {
 		it("names every changed fork-only file in the fork-files paragraph", () => {
 			const paragraph = forkFilesParagraph(doc);
 			const unnamed = changedPaths(split).filter(
-				(p) => !isGuarded(p) && !p.startsWith("docs/") && !paragraph.includes(`\`${p}\``),
+				(p) => !isGuarded(p) && !FORK_TREES.some((tree) => p.startsWith(tree)) && !paragraph.includes(`\`${p}\``),
 			);
 			expect(unnamed, `fork-only files missing from "${FORK_FILES_MARKER}": ${unnamed.join(", ")}`).toEqual([]);
 		});
