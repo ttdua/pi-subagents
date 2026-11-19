@@ -36,7 +36,7 @@ Run them in foreground or background, steer them mid-run, resume completed sessi
 ## Install
 
 ```bash
-pi install git:github.com/ttdua/pi-subagents@v25.0.5-ttdua.1
+pi install git:github.com/ttdua/pi-subagents@v1.0.0
 ```
 
 This fork is not published to npm. Do not install it next to `npm:@gotgenes/pi-subagents`: both register the `subagent` tool, and pi refuses to start a session with two tools of the same name.
