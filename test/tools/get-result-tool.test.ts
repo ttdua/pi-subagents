@@ -10,12 +10,12 @@ import type { Subagent } from "#src/types";
 import type { Theme } from "#src/ui/display";
 import { gatedScheduler } from "#test/helpers/gated-scheduler";
 import { makeModel } from "#test/helpers/make-model";
+import { registryWithGeneral } from "#test/helpers/make-registry";
 import { createTestSubagent, makeStubExecution } from "#test/helpers/make-subagent";
 import { createMockSession, createSubagentSessionStub, toSubagentSession } from "#test/helpers/mock-session";
 import { STUB_CTX } from "#test/helpers/stub-ctx";
 import { textOf } from "#test/helpers/text-of";
 import { turnLoopResult } from "#test/helpers/turn-loop-result";
-import { registryWithGeneral } from "#test/helpers/make-registry";
 
 const testRegistry = registryWithGeneral(() => new Map());
 

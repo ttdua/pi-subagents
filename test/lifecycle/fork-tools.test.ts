@@ -8,9 +8,9 @@ import { describe, expect, it, vi } from "vitest";
 import { createSubagentSession } from "#src/lifecycle/create-subagent-session";
 import {
   FORK_SESSION_HEADERS,
+  type ForkGuardState,
   forkCallableTools,
   forkGuardExtension,
-  type ForkGuardState,
 } from "#src/lifecycle/fork-guard";
 import { enforceForkGrants } from "#src/seams/grant-check";
 import { builtinConfig } from "#test/helpers/builtin-config";

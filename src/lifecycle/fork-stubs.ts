@@ -10,8 +10,8 @@
  */
 
 import type { ToolDefinition } from "@earendil-works/pi-coding-agent";
-import type { ToolDeclaration } from "#src/lifecycle/parent-snapshot";
 import { refusalReason } from "#src/lifecycle/fork-guard";
+import type { ToolDeclaration } from "#src/lifecycle/parent-snapshot";
 import { builtinExtensionsFor } from "#src/session/builtin-extensions";
 
 /** The tools the SDK builds into every session. */

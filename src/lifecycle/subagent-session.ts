@@ -28,8 +28,8 @@ import {
 } from "#src/lifecycle/turn-limits";
 import { getSessionContextPercent, type SessionStatsLike } from "#src/lifecycle/usage";
 import { extractText } from "#src/session/context";
-import { SUBMIT_RESULT_TOOL_NAME } from "#src/session/submit-result-tool";
 import { getAgentConversation } from "#src/session/conversation";
+import { SUBMIT_RESULT_TOOL_NAME } from "#src/session/submit-result-tool";
 import type { SessionMessage, ThinkingLevel } from "#src/types";
 
 /** Outcome of one turn loop. */

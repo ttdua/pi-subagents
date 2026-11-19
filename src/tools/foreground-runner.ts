@@ -1,7 +1,6 @@
 import type { AgentToolResult } from "@earendil-works/pi-coding-agent";
 import type { ParentSnapshot } from "#src/lifecycle/parent-snapshot";
 import type { AgentSpawnConfig } from "#src/lifecycle/subagent-manager";
-import type { LaunchOrigin } from "#src/service/service";
 import {
   renderOutcomeAddenda,
   renderOutcomeBody,
@@ -9,6 +8,7 @@ import {
   renderStatusNote,
   renderWorkspaceNotice,
 } from "#src/observation/outcome-delivery";
+import type { LaunchOrigin } from "#src/service/service";
 import {
   buildDetails,
   formatLifetimeTokens,

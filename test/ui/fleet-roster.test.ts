@@ -1,3 +1,4 @@
+import { visibleWidth } from "@earendil-works/pi-tui";
 import { describe, expect, it } from "vitest";
 import type { AgentConfigLookup } from "#src/config/agent-types";
 import {
@@ -8,7 +9,6 @@ import {
   renderFleetLines,
   rightAlign,
 } from "#src/ui/fleet-roster";
-import { visibleWidth } from "@earendil-works/pi-tui";
 import { makeNavigable } from "../helpers/make-navigable";
 
 const theme = { fg: (_: string, t: string) => t, bold: (t: string) => t };

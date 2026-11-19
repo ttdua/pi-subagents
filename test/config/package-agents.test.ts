@@ -5,8 +5,8 @@ import { ProjectTrustStore } from "@earendil-works/pi-coding-agent";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   builtinAgentDirs,
-  invalidatePackageCache,
   type ConfiguredPackageRow,
+  invalidatePackageCache,
   packageAgentDirs,
   readSubagentManifest,
   seedProjectTrust,

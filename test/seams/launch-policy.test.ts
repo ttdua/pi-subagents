@@ -28,13 +28,13 @@ import { AgentTool } from "#src/tools/agent-tool";
 import type { AgentConfig } from "#src/types";
 import { makeAgentConfig } from "#test/helpers/make-agent-config";
 import { makeModel } from "#test/helpers/make-model";
+import { registryWithGeneral } from "#test/helpers/make-registry";
 import { STUB_SNAPSHOT } from "#test/helpers/stub-ctx";
 import {
 	createFactorySession,
 	createSubagentSessionDeps,
 	createSubagentSessionIO,
 } from "#test/helpers/subagent-session-io";
-import { registryWithGeneral } from "#test/helpers/make-registry";
 
 const FAST = makeModel({ provider: "fixture", id: "fixture-fast" });
 const DEEP = makeModel({ provider: "fixture", id: "fixture-deep" });

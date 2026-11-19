@@ -12,8 +12,8 @@
  * createSession), so threading the provider through here would be a relay smell.
  */
 
-import type { Model } from "@earendil-works/pi-ai";
 import { realpathSync } from "node:fs";
+import type { Model } from "@earendil-works/pi-ai";
 import {
   type AgentSession,
   type InlineExtension,
@@ -24,15 +24,22 @@ import {
 import type { AgentConfigLookup } from "#src/config/agent-types";
 import { debugLog, debugNote } from "#src/debug";
 import type { ChildLifecyclePublisher } from "#src/lifecycle/child-lifecycle";
+import { type ForkGuardState, forkCallableTools, forkGuardExtension, ORCHESTRATION_TOOLS } from "#src/lifecycle/fork-guard";
+import { buildForkSession } from "#src/lifecycle/fork-session";
 import { missingToolStubs, type RealToolLookup } from "#src/lifecycle/fork-stubs";
 import type { ParentSnapshot, ToolDeclaration } from "#src/lifecycle/parent-snapshot";
-import { buildForkSession } from "#src/lifecycle/fork-session";
-import { forkCallableTools, forkGuardExtension, type ForkGuardState, ORCHESTRATION_TOOLS } from "#src/lifecycle/fork-guard";
+import { SubagentSession } from "#src/lifecycle/subagent-session";
+import { resolveTurnLimits, type TurnLimitRequest } from "#src/lifecycle/turn-limits";
 import { enforceForkGrants, enforceGrants, isModelCallable } from "#src/seams/grant-check";
-import { applyLocks, type LaunchValues } from "#src/seams/locked-launch";
 import { type EffectiveFacts, effectiveFacts, launchIdentity, type ToolFacts } from "#src/seams/identity";
-import type { LaunchMetadata, ResultSchema } from "#src/service/service";
 import { type EffectiveSkills, effectiveSkillChoice, type LaunchResources } from "#src/seams/launch-resources";
+import { applyLocks, type LaunchValues } from "#src/seams/locked-launch";
+import { blockedToolCount, finalToolNames } from "#src/seams/registry";
+import type { LaunchMetadata, ResultSchema } from "#src/service/service";
+import { AskParentTool, type QuestionRecorder } from "#src/session/ask-parent-tool";
+import { builtinExtensionsFor } from "#src/session/builtin-extensions";
+import type { EnvInfo } from "#src/session/env";
+import { freshPromptExtension } from "#src/session/fresh-prompt-extension";
 import {
   assertNoCatalogCollision,
   type ResourceFacts,
@@ -41,19 +48,12 @@ import {
   type SkillsOverride,
   skillLoaderOptions,
 } from "#src/session/launch-skills";
-import { blockedToolCount, finalToolNames } from "#src/seams/registry";
-import { SubagentSession } from "#src/lifecycle/subagent-session";
-import { resolveTurnLimits, type TurnLimitRequest } from "#src/lifecycle/turn-limits";
-import { AskParentTool, type QuestionRecorder } from "#src/session/ask-parent-tool";
-import { builtinExtensionsFor } from "#src/session/builtin-extensions";
-import type { EnvInfo } from "#src/session/env";
 import { expandMcpToolPatterns } from "#src/session/mcp-tool-patterns";
 import { type ModelRegistry, resolveForkThinking } from "#src/session/model-resolver";
-import { type StructuredResultSink, SubmitResultTool, SUBMIT_RESULT_TOOL_NAME } from "#src/session/submit-result-tool";
 import { NotifyParentTool, type UpdateAnnouncer } from "#src/session/notify-parent-tool";
-import { freshPromptExtension } from "#src/session/fresh-prompt-extension";
 import { composeAgentSection } from "#src/session/prompts";
 import { type AssemblerIO, assembleSessionConfig, type SessionConfig } from "#src/session/session-config";
+import { type StructuredResultSink, SUBMIT_RESULT_TOOL_NAME, SubmitResultTool } from "#src/session/submit-result-tool";
 import type {
   ContextMode,
   ParentSessionInfo,

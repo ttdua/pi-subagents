@@ -24,6 +24,7 @@ import {
 } from "@earendil-works/pi-coding-agent";
 import { AgentTypeRegistry } from "#src/config/agent-types";
 import { loadCustomAgents } from "#src/config/custom-agents";
+import { DeprecationWarnings } from "#src/config/deprecations";
 import { seedProjectTrust, setProjectTrusted } from "#src/config/package-agents";
 import { InterruptHandler, SessionLifecycleHandler, WidgetEventsHandler } from "#src/handlers/index";
 import { createChildLifecyclePublisher } from "#src/lifecycle/child-lifecycle";
@@ -38,11 +39,10 @@ import {
   type WorkspaceNoticeDetails,
 } from "#src/observation/notification";
 import { SubagentEventsObserver } from "#src/observation/subagent-events-observer";
-import { DeprecationWarnings } from "#src/config/deprecations";
 import { createSubagentRuntime } from "#src/runtime";
 import { AgentTypeCatalog } from "#src/seams/registry";
-import { SubagentsServiceAdapter } from "#src/service/service-adapter";
 import { ServicePublication } from "#src/seams/service-identity";
+import { SubagentsServiceAdapter } from "#src/service/service-adapter";
 import { detectEnv } from "#src/session/env";
 import { createForkSessionManager } from "#src/session/fork-session-manager";
 import { resolveModel } from "#src/session/model-resolver";

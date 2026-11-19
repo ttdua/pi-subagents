@@ -12,9 +12,9 @@ import type { DeprecationWarnings } from "#src/config/deprecations";
 import { type LockableField, resolveAgentInvocationConfig } from "#src/config/invocation-config";
 import { parseThinkingLevel, thinkingLevelError } from "#src/config/thinking-level";
 import { isBelowMinimumTurns, MIN_MAX_TURNS, normalizeMaxTurns } from "#src/lifecycle/turn-limits";
+import { lockedFields } from "#src/seams/locked-launch";
 import type { ModelRegistry } from "#src/session/model-resolver";
 import { resolveForkThinking, resolveInvocationModel } from "#src/session/model-resolver";
-import { lockedFields } from "#src/seams/locked-launch";
 import type { AgentInvocation, ContextMode, SubagentType, ThinkingLevel } from "#src/types";
 import {
   type AgentDetails,

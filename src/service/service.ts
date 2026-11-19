@@ -10,7 +10,6 @@
  */
 
 import type { LockableField } from "#src/config/invocation-config";
-import type { ContextMode } from "#src/types";
 import type { SubagentThinkingLevel } from "#src/config/thinking-level";
 import type { ResumeRefusal, SubagentStatus } from "#src/lifecycle/subagent";
 import type { ResumeRefusalReason } from "#src/lifecycle/subagent-manager";
@@ -23,19 +22,20 @@ import type {
   WorkspacePrepareContext,
   WorkspaceProvider,
 } from "#src/lifecycle/workspace";
+import type { ContextMode } from "#src/types";
 
 
-// SubagentStatus is defined in the lifecycle layer (single home) and re-exported
-// here for the public API surface — mirrors the LifetimeUsage / workspace pattern.
-export type { SubagentStatus } from "#src/lifecycle/subagent";
 // Child lifecycle payloads, so consumers type what they receive on `subagents:child:*`.
 export type {
   ChildBoundEvent,
   ChildSessionCreatedEvent,
   ChildSpawningEvent,
 } from "#src/lifecycle/child-lifecycle";
-export type { PublishedLaunchIdentity } from "#src/seams/identity";
+// SubagentStatus is defined in the lifecycle layer (single home) and re-exported
+// here for the public API surface — mirrors the LifetimeUsage / workspace pattern.
+export type { SubagentStatus } from "#src/lifecycle/subagent";
 export type { TurnBudget, TurnBudgetPhase } from "#src/lifecycle/turn-limits";
+export type { PublishedLaunchIdentity } from "#src/seams/identity";
 // The resume vocabulary is re-exported for the same reason: the record owns the
 // reasons a resume is refused, and the manager adds the one that is not a fact
 // about a record.

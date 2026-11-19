@@ -1,5 +1,5 @@
 import { expect, expectTypeOf, it } from "vitest";
-import { SUBAGENT_EVENTS, type LaunchMetadata, type PublishedLaunchIdentity } from "#src/service/service";
+import { type LaunchMetadata, type PublishedLaunchIdentity, SUBAGENT_EVENTS } from "#src/service/service";
 
 it("exports PublishedLaunchIdentity by name with optional metadata", () => {
 	expectTypeOf<PublishedLaunchIdentity>().toHaveProperty("metadata");

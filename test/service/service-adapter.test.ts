@@ -1,10 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
+import { DeprecationWarnings, defaultDeprecationWarnings } from "#src/config/deprecations";
 import type { ParentSnapshot } from "#src/lifecycle/parent-snapshot";
 import { SubagentState } from "#src/lifecycle/subagent-state";
 import type { WorkspaceProvider } from "#src/lifecycle/workspace";
 import type { SubagentsService } from "#src/service/service";
 import type { ServiceRuntimeLike, SubagentManagerLike } from "#src/service/service-adapter";
-import { DeprecationWarnings, defaultDeprecationWarnings } from "#src/config/deprecations";
 import { SubagentsServiceAdapter, toSubagentRecord } from "#src/service/service-adapter";
 import { type SessionContext, Subagent } from "#src/types";
 import { makeModel } from "#test/helpers/make-model";

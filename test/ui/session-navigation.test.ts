@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AgentTypeRegistry } from "#src/config/agent-types";
 import type { PersistedRunSummary } from "#src/persisted-record";
 import type { AgentConfig, AgentSessionEvent, SessionMessage } from "#src/types";
-import { fileSnapshotSource, listNavigableAgents, liveSource, navigationEntryFor, type NavigableSubagent, type TranscriptSource } from "#src/ui/session-navigation";
+import { fileSnapshotSource, listNavigableAgents, liveSource, type NavigableSubagent, navigationEntryFor, type TranscriptSource } from "#src/ui/session-navigation";
 import { makeAgentConfig } from "#test/helpers/make-agent-config";
 import { makeNavigable } from "#test/helpers/make-navigable";
 import { registryWithGeneral } from "#test/helpers/make-registry";

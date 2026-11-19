@@ -26,7 +26,7 @@ import { createSubagentSession } from "#src/lifecycle/create-subagent-session";
 import { FORK_SESSION_HEADERS } from "#src/lifecycle/fork-guard";
 import { buildParentSnapshot } from "#src/lifecycle/parent-snapshot";
 import { createForkSessionManager } from "#src/session/fork-session-manager";
-import { createChildLifecycleMock, createSubagentSessionDeps, createSubagentSessionIO, createAgentLookup } from "#test/helpers/subagent-session-io";
+import { createAgentLookup, createChildLifecycleMock, createSubagentSessionDeps, createSubagentSessionIO } from "#test/helpers/subagent-session-io";
 
 interface Request {
   body: { messages: { role: string; content: unknown }[]; tools?: unknown };

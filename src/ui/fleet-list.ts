@@ -15,8 +15,8 @@ import type { SubagentManager, SubagentManagerObserver } from "#src/lifecycle/su
 import { isActiveStatus } from "#src/lifecycle/subagent-state";
 import type { Theme } from "#src/ui/display";
 import { fleetRows, renderFleetLines } from "#src/ui/fleet-roster";
-import { navigationEntryFor, type NavigationEntry } from "#src/ui/session-navigation";
-import { type SessionNavigatorUI, openTranscript } from "#src/ui/session-navigator";
+import { type NavigationEntry, navigationEntryFor } from "#src/ui/session-navigation";
+import { openTranscript, type SessionNavigatorUI } from "#src/ui/session-navigator";
 
 /** Widget key for the below-editor fleet list. */
 export const FLEET_WIDGET_KEY = "fleet";

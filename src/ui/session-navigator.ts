@@ -52,8 +52,8 @@ import {
   fileSnapshotSource,
   listNavigableAgents,
   liveSource,
-  type NavigationEntry,
   type NavigableSubagent,
+  type NavigationEntry,
   type TranscriptSource,
 } from "#src/ui/session-navigation";
 import { TranscriptContent } from "#src/ui/transcript-content";

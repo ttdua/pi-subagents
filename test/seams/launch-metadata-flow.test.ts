@@ -27,8 +27,8 @@ import { SubagentsServiceAdapter, toSubagentRecord } from "#src/service/service-
 import { resolveModel } from "#src/session/model-resolver";
 import { AgentTool } from "#src/tools/agent-tool";
 import { makeAgentConfig } from "#test/helpers/make-agent-config";
-import { registryWithGeneral } from "#test/helpers/make-registry";
 import { makeModel } from "#test/helpers/make-model";
+import { registryWithGeneral } from "#test/helpers/make-registry";
 import { STUB_SNAPSHOT } from "#test/helpers/stub-ctx";
 import {
 	createAgentLookup,
