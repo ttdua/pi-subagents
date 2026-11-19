@@ -20,7 +20,7 @@ The command needs a prompt-free round trip to reach an agent: type the command, 
 An operator watching several subagents has no way to move between them from the prompt.
 
 The `tintinweb/pi-subagents` 0.23.2 fleet list shows a below-editor roster of `main` and the running agents, and opens an agent with one key.
-Its list logic (row filter, ordering, windowing, the 4 s linger, the key handling) is ported into this package, credited in `NOTICE.md`, and recorded in `VENDORED.md`.
+Its list logic (row filter, ordering, windowing, the 4 s linger, the key handling) is ported into this package, credited in `NOTICE.md`, and recorded in `UPSTREAM.md`.
 Its viewer, workflows, mentions, cost and handoff features are not ported.
 
 ## Decision
@@ -56,6 +56,6 @@ Where the fork's conventions differ (no agent colors, no cost, no viewer), the p
   Rows show whole seconds and have no spinner, so the cost is frames only.
 - A running background agent also appears in the above-editor agents widget; the fleet list is for navigation, so the two overlap by design.
 - The fork's vendored diff grows by two new UI modules, the `openTranscript` and `navigationEntryFor` extractions, the `fleetView` setting and the wiring in `index.ts`.
-  Each is listed in `VENDORED.md`, and upstream sync must carry them.
+  Each is listed in `UPSTREAM.md`, and upstream sync must carry them.
 
 [ADR 0004]: 0004-reconsider-ui-direction.md

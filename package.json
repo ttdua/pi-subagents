@@ -1,6 +1,6 @@
 {
   "name": "@ttdua/pi-subagents",
-  "version": "25.0.5",
+  "version": "25.0.5-ttdua.1",
   "type": "module",
   "exports": {
     ".": {
@@ -19,25 +19,30 @@
     "docs/*.md",
     "docs/architecture",
     "docs/decisions",
-    "CHANGELOG.md"
+    "CHANGELOG.md",
+    "NOTICE.md",
+    "UPSTREAM.md"
   ],
   "imports": {
     "#src/*": "./src/*",
     "#test/*": "./test/*"
   },
-  "description": "A focused, in-process sub-agent core for pi \u2014 autonomous agents plus a typed API and lifecycle events other extensions build on. Friendly fork of @tintinweb/pi-subagents.",
+  "description": "A focused, in-process sub-agent core for pi \u2014 autonomous agents plus a typed API and lifecycle events other extensions build on. Fork of @gotgenes/pi-subagents with launch policy, metadata, resources and markdown built-in agents.",
   "author": {
-    "name": "Chris Lasher"
+    "name": "ttdua"
   },
+  "contributors": [
+    "Chris Lasher (upstream @gotgenes/pi-subagents)",
+    "tintinweb (original tintinweb/pi-subagents)"
+  ],
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/gotgenes/pi-packages.git",
-    "directory": "packages/pi-subagents"
+    "url": "git+https://github.com/ttdua/pi-subagents.git"
   },
-  "homepage": "https://github.com/gotgenes/pi-packages/tree/main/packages/pi-subagents#readme",
+  "homepage": "https://github.com/ttdua/pi-subagents#readme",
   "bugs": {
-    "url": "https://github.com/gotgenes/pi-packages/issues"
+    "url": "https://github.com/ttdua/pi-subagents/issues"
   },
   "keywords": [
     "pi-package",
@@ -64,7 +69,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "lint:md": "rumdl check *.md docs/**/*.md",
-    "lint": "biome check . && eslint ."
+    "lint": "biome check ."
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.11",
@@ -88,7 +93,7 @@
         "./agents"
       ]
     },
-    "image": "https://raw.githubusercontent.com/gotgenes/pi-packages/main/packages/pi-subagents/docs/assets/demo.webp"
+    "image": "https://raw.githubusercontent.com/ttdua/pi-subagents/main/docs/assets/demo.webp"
   },
   "private": true
 }

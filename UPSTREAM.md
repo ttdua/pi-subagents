@@ -1,6 +1,6 @@
-# Vendored executor
+# Upstream
 
-This directory is a vendored copy of `@gotgenes/pi-subagents`, kept in the tree so that jev-pilot can add seams to it. Behavior is unchanged from upstream apart from the changes listed below.
+This repository is a fork of `@gotgenes/pi-subagents`. It started as a vendored copy inside `ttdua/pi-jev-pilot` (`packages/pi-subagents`) and was split out with `git subtree split`, so upstream's history is kept. Behavior is unchanged from upstream apart from the changes listed below.
 
 ## Upstream
 
@@ -8,11 +8,12 @@ This directory is a vendored copy of `@gotgenes/pi-subagents`, kept in the tree 
 - Path: `packages/pi-subagents`
 - Tag: `pi-subagents-v25.0.5`
 - Commit: `a4dd5f7611a2d7687a50899e99be7bd727ddc2b0`
-- Upstream tree commit: `dbaae7983b000d9916645856b524465a4d953153`, kept reachable by the tag `vendor/pi-subagents-v25.0.5`
-- Upstream split commit: `e6b408e8c5a1036c00a8b5f233549cedcb83f77c`
+- Upstream split commit: `e6b408e8c5a1036c00a8b5f233549cedcb83f77c` (in this repository's history; `git diff e6b408e HEAD` shows every local change)
 - License: MIT, see `LICENSE` (unchanged)
 
-"Upstream tree commit" is the squash commit `git subtree add --squash` created for the vendored tree (archive it for the pristine upstream tree). A squash merge of the pull request leaves it out of `main`'s history, so a `vendor/pi-subagents-v<version>` tag must point at it; the tests read it. "Upstream split commit" is the `git subtree split --prefix packages/pi-subagents` commit of the tag; it is not in this repository's history. `.upstream-manifest` lists the blob id of every file at that tree (`bun scripts/vendor-manifest.ts <commit>`); `tests/vendoring.test.ts` fails when a file differs from it without a row below.
+"Upstream split commit" is the `git subtree split --prefix packages/pi-subagents` commit of the tag. To sync a newer upstream release, split the new tag the same way and merge it (see the README's "Syncing upstream").
+
+Outside the table below, the fork also changes repository files that upstream kept at the monorepo root: `biome.json` (standalone config), `.gitignore`, `bun.lock`, `.github/workflows/ci.yml`, `README.md` (fork notes, install from git) and `AGENTS.md`.
 
 ## Local changes
 

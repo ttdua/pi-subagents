@@ -1,15 +1,15 @@
-# @gotgenes/pi-subagents
+# @ttdua/pi-subagents
 
-[![npm version](https://img.shields.io/npm/v/@gotgenes/pi-subagents?style=flat&logo=npm&logoColor=white)](https://www.npmjs.com/package/@gotgenes/pi-subagents) [![CI](https://img.shields.io/github/actions/workflow/status/gotgenes/pi-packages/ci.yml?style=flat&logo=github&label=CI)](https://github.com/gotgenes/pi-packages/actions/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat)](https://opensource.org/licenses/MIT) [![TypeScript](https://img.shields.io/badge/TypeScript-6.x-3178C6?style=flat&logo=typescript&logoColor=white)](https://www.typescriptlang.org/) [![pnpm](https://img.shields.io/badge/pnpm-%3E%3D11-F69220?style=flat&logo=pnpm&logoColor=white)](https://pnpm.io/) [![Pi Package](https://img.shields.io/badge/Pi-Package-6366F1?style=flat)](https://pi.mariozechner.at/)
+[![CI](https://img.shields.io/github/actions/workflow/status/ttdua/pi-subagents/ci.yml?style=flat&logo=github&label=CI)](https://github.com/ttdua/pi-subagents/actions/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat)](https://opensource.org/licenses/MIT) [![TypeScript](https://img.shields.io/badge/TypeScript-6.x-3178C6?style=flat&logo=typescript&logoColor=white)](https://www.typescriptlang.org/) [![Bun](https://img.shields.io/badge/Bun-%3E%3D1.4-000000?style=flat&logo=bun&logoColor=white)](https://bun.sh/) [![Pi Package](https://img.shields.io/badge/Pi-Package-6366F1?style=flat)](https://pi.mariozechner.at/)
 
 A [pi](https://pi.dev) extension that gives pi **a focused, in-process sub-agent core** — autonomous agents that run inside the same pi runtime (no spawned subprocesses), plus a typed API and lifecycle events other extensions build on.
 Spawn specialized agents that run in isolated sessions — each with its own tools, system prompt, model, and thinking level.
 Run them in foreground or background, steer them mid-run, resume completed sessions, and define your own custom agent types.
 
-> Originally forked from [`tintinweb/pi-subagents`](https://github.com/tintinweb/pi-subagents) by [@tintinweb](https://github.com/tintinweb), now an independently maintained hard fork.
-> See [Comparison with upstream](./docs/comparison-with-upstream.md) for a feature-by-feature comparison and guidance on which to choose.
+> **Fork of [`@gotgenes/pi-subagents`](https://www.npmjs.com/package/@gotgenes/pi-subagents)** ([`gotgenes/pi-packages`](https://github.com/gotgenes/pi-packages/tree/main/packages/pi-subagents), by [Chris Lasher](https://github.com/gotgenes)), itself a hard fork of [`tintinweb/pi-subagents`](https://github.com/tintinweb/pi-subagents).
+> Based on upstream `pi-subagents-v25.0.5`, with the upstream git history kept. See [Fork changes](#fork-changes) for what this fork adds and [UPSTREAM.md](./UPSTREAM.md) for the upstream commit and every file changed from it.
 
-![Six background Explore subagents run four at a time with two queued; completion notices arrive one by one, then /subagents:sessions opens a finished agent's transcript](https://raw.githubusercontent.com/gotgenes/pi-packages/main/packages/pi-subagents/docs/assets/demo.webp)
+![Six background Explore subagents run four at a time with two queued; completion notices arrive one by one, then /subagents:sessions opens a finished agent's transcript](https://raw.githubusercontent.com/ttdua/pi-subagents/main/docs/assets/demo.webp)
 
 ## Features
 
@@ -36,8 +36,10 @@ Run them in foreground or background, steer them mid-run, resume completed sessi
 ## Install
 
 ```bash
-pi install npm:@gotgenes/pi-subagents
+pi install git:github.com/ttdua/pi-subagents@v25.0.5-ttdua.1
 ```
+
+This fork is not published to npm. Do not install it next to `npm:@gotgenes/pi-subagents`: both register the `subagent` tool, and pi refuses to start a session with two tools of the same name.
 
 Or load directly for development:
 
@@ -65,7 +67,7 @@ Background agents return an ID immediately and notify you on completion.
 
 The extension renders a persistent widget above the editor showing the agents whose current run is in the background (foreground runs, resumes included, are rendered inline by the `subagent` tool's progress stream):
 
-![The agents widget: four running Explore agents, each with its model, turn count, tool uses, tokens and context use, and current activity, above a line reading 2 queued](https://raw.githubusercontent.com/gotgenes/pi-packages/main/packages/pi-subagents/docs/assets/widget.png)
+![The agents widget: four running Explore agents, each with its model, turn count, tool uses, tokens and context use, and current activity, above a line reading 2 queued](https://raw.githubusercontent.com/ttdua/pi-subagents/main/docs/assets/widget.png)
 
 ```text
 ● Agents
@@ -397,12 +399,12 @@ When `@gotgenes/pi-permission-system` is not installed, the lifecycle events hav
 
 This package exposes two public subpath exports for companion extensions to import from the published tarball.
 
-### `@gotgenes/pi-subagents` — cross-extension service contract
+### `@ttdua/pi-subagents` — cross-extension service contract
 
 Access the subagent service from another extension at runtime:
 
 ```typescript
-const { getSubagentsService } = await import("@gotgenes/pi-subagents");
+const { getSubagentsService } = await import("@ttdua/pi-subagents");
 const svc = getSubagentsService();
 svc?.spawn("Explore", "Check for stale TODOs");
 ```
@@ -624,12 +626,12 @@ Pass `signal` to cancel the resumed turn loop.
 It is wired through the record's own lever, so it ends the resume exactly as `abort(id)` does — either cancel reaches the same run, and the record reads `stopped`.
 A signal that has already fired stops the resume before its first turn.
 
-### `@gotgenes/pi-subagents/settings` — layered config loader
+### `@ttdua/pi-subagents/settings` — layered config loader
 
 Extensions that store configuration in JSON files can use the shared layered loader, which reads a global file (`<agentDir>/<filename>`) and a project file (`<cwd>/.pi/<filename>`) and merges them — project wins on conflicts, missing files are silent, malformed files warn and fall back:
 
 ```typescript
-import { loadLayeredSettings, type LayeredSettingsSource } from "@gotgenes/pi-subagents/settings";
+import { loadLayeredSettings, type LayeredSettingsSource } from "@ttdua/pi-subagents/settings";
 
 interface MyConfig { enabled?: boolean; limit?: number }
 
@@ -708,9 +710,36 @@ A batteries-included alternative → upstream [`tintinweb/pi-subagents`](https:/
 
 This extension is a minimal, composable core: it owns agent spawning, execution, and result retrieval, and exposes a typed `SubagentsService` plus lifecycle events that other extensions build on.
 
+## Fork changes
+
+This repository is a fork of [`@gotgenes/pi-subagents`](https://www.npmjs.com/package/@gotgenes/pi-subagents) 25.0.5 (source: [`gotgenes/pi-packages`](https://github.com/gotgenes/pi-packages), `packages/pi-subagents`, tag `pi-subagents-v25.0.5`).
+It keeps upstream's git history and adds:
+
+- **Markdown built-in agents** — `general`, `explore`, `scout`, `implementer`, `reviewer` and `verifier` ship as files in [`agents/`](./agents), declared under `pi.subagents.agents`; no agent is defined in code.
+- **Package agents** — installed pi packages can contribute agents through `pi.subagents.agents`.
+- **`disallowed_tools`** frontmatter, applied after every other tool source.
+- **Agent registry** — `listAgentTypes()` and `getAgentType(name)` on the service.
+- **Launch policy** — `registerLaunchPolicy` lets one extension adjust model, thinking and tools for each launch.
+- **Launch identity, metadata and resources** — child events carry `agentId`, `agentType`, `toolCallId`, launch `metadata`, and per-launch skills, excluded extension packages, `cwd` and context files.
+- **Service wait** — `wait()` on the service and `subagents:update` / `subagents:asked` events.
+- **Fleet list** — a below-editor list of `main` and the subagents.
+- **Service identity** — the published service carries `implementation: "@ttdua/pi-subagents"` and the owning `sessionId`; child sessions never replace the main service.
+
+[UPSTREAM.md](./UPSTREAM.md) lists every file changed from upstream with a one-line reason.
+To see the full diff: `git diff e6b408e HEAD` (`e6b408e` is upstream's `chore(release): pi-subagents 25.0.5`).
+
+### Syncing upstream
+
+```bash
+git clone https://github.com/gotgenes/pi-packages.git /tmp/pi-packages
+git -C /tmp/pi-packages subtree split --prefix packages/pi-subagents pi-subagents-v<version> -b upstream-split
+git fetch /tmp/pi-packages upstream-split
+git merge FETCH_HEAD
+```
+
 ## Relationship to upstream
 
-This package is an independently maintained hard fork of [`tintinweb/pi-subagents`](https://github.com/tintinweb/pi-subagents) by [@tintinweb](https://github.com/tintinweb).
+`@gotgenes/pi-subagents` is an independently maintained hard fork of [`tintinweb/pi-subagents`](https://github.com/tintinweb/pi-subagents) by [@tintinweb](https://github.com/tintinweb).
 It has diverged substantially in scope and architecture: a minimal core with a typed service API and lifecycle events, with tool-restriction policy and worktree isolation delegated to companion packages.
 Upstream remains the batteries-included option, keeping scheduling, cross-extension RPC, model-scope enforcement, and a built-in tool denylist in a single package.
 
@@ -718,4 +747,4 @@ See [Comparison with upstream](./docs/comparison-with-upstream.md) for a full fe
 
 ## License
 
-MIT — [tintinweb](https://github.com/tintinweb) (upstream) and [Chris Lasher](https://github.com/gotgenes) (fork)
+MIT — [tintinweb](https://github.com/tintinweb) (original), [Chris Lasher](https://github.com/gotgenes) (`@gotgenes/pi-subagents`) and [ttdua](https://github.com/ttdua) (this fork). See [LICENSE](./LICENSE).

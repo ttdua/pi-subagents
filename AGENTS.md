@@ -1,7 +1,8 @@
 # AGENTS.md
 
-⚠️ It looks like the agent was started from a package subdirectory.
+`@ttdua/pi-subagents`: a fork of `@gotgenes/pi-subagents` (see `UPSTREAM.md`, `NOTICE.md`).
 
-Advise the user to launch Pi from the **repository root** (`pi-packages/`) instead.
-The root provides `.pi/settings.json`, `.pi/prompts/`, and the full skill set.
-Package-specific context for this package is available via the `package-pi-subagents` skill.
+- Tooling: `bun` (`bun install`, `bun run check`, `bun run test`, `bun run verify:public-types`).
+- Every edit to a file that exists upstream needs a row in `UPSTREAM.md` (file, kind, one-line reason).
+- Built-in agents live in `agents/*.md` (declared under `pi.subagents.agents`); no agent is defined in code, and their bodies stay flow-neutral (no skill, slash command or workflow names).
+- The published service keeps `implementation: "@ttdua/pi-subagents"`; consumers such as `@ttdua/pi-jev-pilot` detect it by capability (`registerLaunchPolicy`, `listAgentTypes`).
