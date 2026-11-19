@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 This fork's entries come first; upstream's are kept under "Upstream `@gotgenes/pi-subagents` history" below them.
 See `CONTRIBUTING.md` for the release steps.
 
+## [0.1.1](https://github.com/ttdua/pi-subagents/releases/tag/v0.1.1) (2026-11-20)
+
+Repository and release tooling; no runtime or public type changes.
+Install with `pi install git:github.com/ttdua/pi-subagents@v0.1.1`.
+
+### Changed
+
+- Remaining `@gotgenes/pi-subagents` references in comments, generated declarations and docs now name `@ttdua/pi-subagents`; `SERVICE_KEY` keeps the upstream name ([#9](https://github.com/ttdua/pi-subagents/pull/9)).
+- Behaviour specs live in `openspec/specs/` (OpenSpec, `superspec` schema) ([#11](https://github.com/ttdua/pi-subagents/pull/11)).
+- The package no longer ships upstream plans, retros and phase history ([#10](https://github.com/ttdua/pi-subagents/pull/10)).
+
+### Added
+
+- Release check: `bun run test` fails when the `package.json` version, the newest changelog entry and the README install pin drift apart. `CONTRIBUTING.md` lists the release steps; pushing a `v*` tag creates the GitHub release ([#12](https://github.com/ttdua/pi-subagents/pull/12)).
+- `packageManager: bun@1.4.4` and `engines.bun` ([#12](https://github.com/ttdua/pi-subagents/pull/12)).
+- `test/upstream.test.ts` fails on upstream files edited without a row in `UPSTREAM.md`; `scripts/sync-upstream.sh` syncs a newer upstream release ([#8](https://github.com/ttdua/pi-subagents/pull/8)).
+
+### Fixed
+
+- Biome lint errors; CI runs `lint` and `lint:md` ([#7](https://github.com/ttdua/pi-subagents/pull/7), [#10](https://github.com/ttdua/pi-subagents/pull/10)).
+- CI actions run on Node.js 24 (`actions/checkout@v7`, `actions/setup-node@v7`) ([#12](https://github.com/ttdua/pi-subagents/pull/12)).
+
 ## [0.1.0](https://github.com/ttdua/pi-subagents/releases/tag/v0.1.0) (2026-11-19)
 
 First release of `@ttdua/pi-subagents`, a fork of `@gotgenes/pi-subagents` 25.0.5 split out of `ttdua/pi-jev-pilot`. Versions restart at 0.1.0.
