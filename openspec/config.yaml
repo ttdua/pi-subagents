@@ -1,0 +1,32 @@
+schema: superspec
+language: en
+
+context: |
+  @ttdua/pi-subagents is a Pi extension that runs subagents: the `subagent`
+  tool, the agent registry and built-in role agents, and a service on
+  `globalThis` that other extensions use to launch, wait for and steer
+  subagents (launch policy, metadata, resources, structured results). It is
+  a fork of @gotgenes/pi-subagents; every local change to an upstream file is
+  listed in UPSTREAM.md, and credits live in NOTICE.md.
+
+  Stack: TypeScript run by Pi (@earendil-works/pi-coding-agent), Bun for
+  install and scripts, vitest for tests, biome for lint and format.
+  Checks: `bun run check`, `bun run test`, `bun run verify:public-types`.
+
+  Decisions live in docs/decisions/; architecture in docs/architecture/.
+
+  Invariants:
+  - Public Pi APIs only.
+  - Built-in agents live in agents/*.md, never in code; their bodies stay
+    flow-neutral (no skill, slash command or workflow names).
+  - Additions to events, records and the service are optional fields, so
+    consumers written for upstream keep working.
+  - The published service keeps `implementation: "@ttdua/pi-subagents"`;
+    consumers (for example @ttdua/pi-jev-pilot) detect it by capability.
+  - Public repository: everything in English, no real prompts or secrets.
+
+rules:
+  proposal:
+    - List the docs/ and UPSTREAM.md rows the change updates.
+  plan:
+    - Tests need no secrets, paid calls or network beyond loopback.
