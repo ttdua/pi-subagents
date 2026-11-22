@@ -14,7 +14,7 @@ Blocked by: none
 
 Blocked by: 1
 
-- [ ] 2.1 `README.md`: extend the launch policy feature line to turn limits, and add a note to the turn-budget section that a launch policy may raise (never lower) the limit and that `turnBudget.maxTurns` is the effective one
-- [ ] 2.2 `docs/configuration.md`: state the turn-limit precedence next to `max_turns` (caller, agent, `defaultMaxTurns`, then a launch policy raise; a lock blocks the raise)
-- [ ] 2.3 `UPSTREAM.md`: add one row per changed file for this change: `src/service/service.ts`, `src/seams/launch-request.ts`, `src/seams/launch-policy.ts`, `src/seams/launch-plan.ts`, `src/seams/launch-gate.ts`, `src/lifecycle/subagent.ts`, `test/seams/launch-policy.test.ts`, `README.md` and `docs/configuration.md`
-- [ ] 2.4 Run `bun run lint:md` and `bun run test` (the upstream guard test reads `UPSTREAM.md`)
+- [x] 2.1 `README.md`: extend the launch policy feature line to turn limits, and add a note to the turn-budget section that a launch policy may raise (never lower) the limit and that `turnBudget.maxTurns` is the effective one
+- [x] 2.2 `docs/configuration.md`: state the turn-limit precedence next to `max_turns` (caller, agent, `defaultMaxTurns`, then a launch policy raise; a lock blocks the raise)
+- [x] 2.3 `UPSTREAM.md`: add one row per changed file for this change: `src/service/service.ts`, `src/seams/launch-request.ts`, `src/seams/launch-policy.ts`, `src/seams/launch-plan.ts`, `src/seams/launch-gate.ts`, `src/lifecycle/subagent.ts`, `test/seams/launch-policy.test.ts`, `README.md` and `docs/configuration.md`
+- [x] 2.4 Run `bun run lint:md` and `bun run test` (the upstream guard test reads `UPSTREAM.md`)
