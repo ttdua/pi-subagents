@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 This fork's entries come first; upstream's are kept under "Upstream `@gotgenes/pi-subagents` history" below them.
 See `CONTRIBUTING.md` for the release steps.
 
+## [0.2.0](https://github.com/ttdua/pi-subagents/releases/tag/v0.2.0) (2026-11-22)
+
+A launch policy can raise a launch's turn limit. Additive: existing policies and consumers are unaffected.
+Install with `pi install git:github.com/ttdua/pi-subagents@v0.2.0`.
+
+### Added
+
+- `LaunchRequest.requested.maxTurns`: the turn limit the launch runs with if the policy changes nothing; absent for an unlimited launch ([#14](https://github.com/ttdua/pi-subagents/pull/14)).
+- `LaunchAdjustment.maxTurns`: raise-only. Applied only above `requested.maxTurns`; dropped with a debug note when it is equal or lower, when the launch has no limit, or when the agent locks `max_turns`. A value that is not a positive integer makes the adjustment malformed, and the launch fails open. The raised limit is the session's limit, so resumes keep it ([#14](https://github.com/ttdua/pi-subagents/pull/14)).
+
 ## [0.1.1](https://github.com/ttdua/pi-subagents/releases/tag/v0.1.1) (2026-11-20)
 
 Repository and release tooling; no runtime or public type changes.
