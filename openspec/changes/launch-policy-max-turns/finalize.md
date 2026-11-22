@@ -16,7 +16,7 @@
 - **Branch**: `spec/launch-policy-max-turns`
 - **Base branch**: `main`
 - **Final state**: `pr-open`
-- **PR URL**: pending (filled in after the PR is opened)
+- **PR URL**: `https://github.com/ttdua/pi-subagents/pull/14`
 
 ---
 
@@ -36,7 +36,7 @@ Deviations from the finalize steps, from the user's global AGENTS.md (isolated W
 
 ## PR comment
 
-- **PR comment status**: pending (filled in after the PR is opened)
+- **PR comment status**: `posted` (https://github.com/ttdua/pi-subagents/pull/14#issuecomment-7080172068)
 
 ---
 
