@@ -540,7 +540,7 @@ export class Subagent {
 					}
 					: undefined,
 				turnLimits: {
-					maxTurns: this.execution.maxTurns,
+					maxTurns: overrides?.maxTurns ?? this.execution.maxTurns,
 					defaultMaxTurns: runConfig?.defaultMaxTurns,
 					wrapUpTurns: runConfig?.wrapUpTurns,
 				},
@@ -570,6 +570,8 @@ export class Subagent {
 			description: this.description,
 			model: execution.model,
 			thinkingLevel: execution.thinkingLevel,
+			maxTurns: execution.maxTurns,
+			defaultMaxTurns: execution.getRunConfig?.().defaultMaxTurns,
 			context: execution.context,
 			isBackground: run.inBackground,
 			parentModel: execution.snapshot.model,

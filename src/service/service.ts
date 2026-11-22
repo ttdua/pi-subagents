@@ -208,8 +208,11 @@ export interface LaunchRequest {
   description: string;
   /** The caller's launch metadata, frozen; present only when the launch has metadata. */
   metadata?: LaunchMetadata;
-  /** The caller's model (`provider/id`) and thinking level, after `locked` fields were applied. */
-  requested: { model?: string; thinking?: SubagentThinkingLevel };
+  /**
+   * The caller's model (`provider/id`) and thinking level, after `locked` fields were applied,
+   * and the turn limit the launch runs with (at least 2); `maxTurns` is absent for an unlimited launch.
+   */
+  requested: { model?: string; thinking?: SubagentThinkingLevel; maxTurns?: number };
   /** The lockable fields the agent locks; the policy cannot change them. */
   locked: readonly LockableField[];
   /** The resolved context, after any fallback. */
@@ -236,6 +239,8 @@ export interface LaunchAdjustment {
   model?: string;
   /** Ignored when the agent locks `thinking`. */
   thinking?: SubagentThinkingLevel;
+  /** Raises the turn limit; ignored unless greater than `requested.maxTurns`, the launch has a limit and the agent does not lock `max_turns`. */
+  maxTurns?: number;
   /** Tools to grant; each must be in `toolSet.parentTools` and not in `toolSet.disallowed`. */
   addTools?: readonly string[];
   /** Tools to remove; a declared tool cannot be removed. */

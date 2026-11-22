@@ -8,6 +8,7 @@
 
 import type { Model } from "@earendil-works/pi-ai";
 import { debugLog, debugNote } from "#src/debug";
+import { resolveTurnLimits } from "#src/lifecycle/turn-limits";
 import { applyAdjustment } from "#src/seams/launch-plan";
 import type { LaunchPolicySlot } from "#src/seams/launch-policy";
 import {
@@ -45,6 +46,10 @@ export interface LaunchFacts {
 	description: string;
 	model?: Model<any>;
 	thinkingLevel?: ThinkingLevel;
+	/** The door's `max_turns` / service `maxTurns`, before the agent's and the default. */
+	maxTurns?: number;
+	/** The `defaultMaxTurns` setting. */
+	defaultMaxTurns?: number;
 	context: ContextMode;
 	isBackground: boolean;
 	/** The parent's model, which a locked agent model falls back to when unresolvable. */
@@ -63,6 +68,8 @@ export interface LaunchFacts {
 export interface LaunchOverrides {
 	model: Model<any> | undefined;
 	thinkingLevel: ThinkingLevel | undefined;
+	/** The raised turn limit; absent when the policy did not raise it. */
+	maxTurns?: number;
 	/** The child's base tool names, and the grants among them to check after bind. */
 	tools?: { toolNames: string[]; grants: string[]; removed: readonly string[] };
 }
@@ -132,7 +139,7 @@ function overridesOf(
 	const model = plan.model
 		? resolvePolicyModel(plan.model, registry)
 		: undefined;
-	return {
+	const overrides: LaunchOverrides = {
 		model: model ?? base.model,
 		thinkingLevel: plan.thinking ?? base.thinkingLevel,
 		tools: {
@@ -141,6 +148,8 @@ function overridesOf(
 			removed: plan.removed,
 		},
 	};
+	if (plan.maxTurns !== undefined) overrides.maxTurns = plan.maxTurns;
+	return overrides;
 }
 
 /**
@@ -166,13 +175,17 @@ function baseOverrides(facts: LaunchFacts, locked: LaunchValues): LaunchOverride
 function requestedValues(
 	facts: LaunchFacts,
 	config: AgentConfig,
-): { model?: string; thinking?: ThinkingLevel } {
+): { model?: string; thinking?: ThinkingLevel; maxTurns?: number } {
 	const fork = facts.context === "fork";
 	const fallbackModel = fork ? modelName(facts.parentModel) : config.model;
 	const fallbackThinking = fork ? facts.parentThinking : config.thinking;
 	return {
 		model: modelName(facts.model) ?? fallbackModel,
 		thinking: facts.thinkingLevel ?? fallbackThinking,
+		maxTurns: resolveTurnLimits(
+			{ maxTurns: facts.maxTurns, defaultMaxTurns: facts.defaultMaxTurns },
+			config.maxTurns,
+		).maxTurns,
 	};
 }
 
