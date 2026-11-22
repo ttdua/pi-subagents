@@ -248,7 +248,7 @@ export interface LaunchAdjustment {
 }
 
 /**
- * Decides a launch's model, thinking level and tool adjustments. Fails open:
+ * Decides a launch's model, thinking level, turn limit and tool adjustments. Fails open:
  * a throw, a rejection, a malformed value or a timeout leaves the launch
  * unchanged, and the signal is aborted.
  */

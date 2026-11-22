@@ -9,7 +9,7 @@ The policy SHALL receive:
 - `prompt` and `description`.
 - `metadata`, the caller's launch metadata from `launch-metadata`, frozen, only when the launch carries metadata. A launch without metadata, and every tool-call launch, MUST omit the field.
 - `requested`: the caller's `model` and `thinking` after `locked` fields were applied. For a fork, an unlocked field with no caller value is the parent's model or thinking.
-- `requested.maxTurns`: the turn limit the launch runs with when the policy changes nothing, resolved as the session resolves it (the caller's `max_turns` or service `maxTurns`, else the agent's `maxTurns`, else the `defaultMaxTurns` setting, raised to the minimum of 2; a value of 0 at any step means no limit and ends the lookup). It MUST be absent when the launch has no limit.
+- `requested.maxTurns`: the turn limit the launch runs with when the policy changes nothing, resolved as the session resolves it (the caller's `max_turns` or service `maxTurns`, else the agent's `maxTurns`, else the `defaultMaxTurns` setting, raised to the minimum of 2; an agent `maxTurns` of 0 means no limit). It MUST be absent when the launch has no limit.
 - `locked`, the lockable fields the agent locks.
 - `context`, the launch's resolved context (`fresh` or `fork`, after any fallback), and `isBackground`.
 - `toolSet`, with:

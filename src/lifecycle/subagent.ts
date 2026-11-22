@@ -457,11 +457,13 @@ export class Subagent {
 			return;
 		}
 
+		const runConfig = this.execution.getRunConfig?.();
+
 		// A new launch consults the launch policy once it has left the queue; the
 		// await is skipped with no policy, keeping upstream's timing.
 		let overrides: LaunchOverrides | undefined;
 		if (this.execution.launchGate?.active) {
-			overrides = await this.consultLaunchPolicy(run, this.execution.launchGate);
+			overrides = await this.consultLaunchPolicy(run, this.execution.launchGate, runConfig);
 			// Cancelled while the policy ran: end like a launch cancelled before start.
 			if (run.aborted) {
 				this.endBeforeStart(run);
@@ -503,7 +505,6 @@ export class Subagent {
 			}
 		}
 
-		const runConfig = this.execution.getRunConfig?.();
 		try {
 			this.subagentSession = await this.execution.createSubagentSession({
 				agentId: this.id,
@@ -557,7 +558,7 @@ export class Subagent {
 	}
 
 	/** Ask the launch policy for this launch's overrides; the run's lever cancels it. */
-	private consultLaunchPolicy(run: SubagentRun, gate: LaunchPolicyGate): Promise<LaunchOverrides | undefined> {
+	private consultLaunchPolicy(run: SubagentRun, gate: LaunchPolicyGate, runConfig: RunConfig | undefined): Promise<LaunchOverrides | undefined> {
 		const execution = this.execution;
 		return gate.plan({
 			agentId: this.id,
@@ -571,7 +572,7 @@ export class Subagent {
 			model: execution.model,
 			thinkingLevel: execution.thinkingLevel,
 			maxTurns: execution.maxTurns,
-			defaultMaxTurns: execution.getRunConfig?.().defaultMaxTurns,
+			defaultMaxTurns: runConfig?.defaultMaxTurns,
 			context: execution.context,
 			isBackground: run.inBackground,
 			parentModel: execution.snapshot.model,

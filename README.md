@@ -720,7 +720,7 @@ It keeps upstream's git history and adds:
 - **Package agents** — installed pi packages can contribute agents through `pi.subagents.agents`.
 - **`disallowed_tools`** frontmatter, applied after every other tool source.
 - **Agent registry** — `listAgentTypes()` and `getAgentType(name)` on the service.
-- **Launch policy** — registerLaunchPolicy lets one extension adjust model, thinking, tools and turn limit for each launch.
+- **Launch policy** — `registerLaunchPolicy` lets one extension adjust model, thinking, tools and turn limit for each launch.
 - **Launch identity, metadata and resources** — child events carry `agentId`, `agentType`, `toolCallId`, launch `metadata`, and per-launch skills, excluded extension packages, `cwd` and context files.
 - **Service wait** — `wait()` on the service and `subagents:update` / `subagents:asked` events.
 - **Fleet list** — a below-editor list of `main` and the subagents.
