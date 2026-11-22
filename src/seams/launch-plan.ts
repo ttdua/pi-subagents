@@ -16,6 +16,8 @@ export interface LaunchPlan {
 	/** The policy's model string, when it may apply; resolved by the caller. */
 	model?: string;
 	thinking?: ThinkingLevel;
+	/** The raised turn limit, set only when the raise applies. */
+	maxTurns?: number;
 	/** The child's base tool names without grants (before protocol tools and `disallowed_tools`). */
 	toolNames: string[];
 	/** Granted names, checked in the child after its extensions bind. */
@@ -45,7 +47,35 @@ export function applyAdjustment(
 	if (model !== undefined) plan.model = model;
 	const thinking = unlockedValue(request, "thinking", adjustment.thinking);
 	if (thinking !== undefined) plan.thinking = thinking;
+	const maxTurns = raisedMaxTurns(request, adjustment.maxTurns);
+	if (maxTurns !== undefined) plan.maxTurns = maxTurns;
 	return plan;
+}
+
+/** The policy's turn limit when it raises the requested one; otherwise `undefined` with a debug note. */
+function raisedMaxTurns(
+	request: LaunchRequest,
+	value: number | undefined,
+): number | undefined {
+	if (value === undefined) return undefined;
+	const requested = request.requested.maxTurns;
+	const refusal = refusalOfRaise(request, value, requested);
+	if (refusal === undefined) return value;
+	debugNote(
+		`launch policy: agent ${request.agentType} ${refusal}; maxTurns ${value} ignored`,
+	);
+	return undefined;
+}
+
+function refusalOfRaise(
+	request: LaunchRequest,
+	value: number,
+	requested: number | undefined,
+): string | undefined {
+	if (request.locked.includes("max_turns")) return "locks max_turns";
+	if (requested === undefined) return "has no turn limit";
+	if (value <= requested) return `limit ${requested} is not exceeded`;
+	return undefined;
 }
 
 function unlockedValue<T>(

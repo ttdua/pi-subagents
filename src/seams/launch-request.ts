@@ -40,7 +40,7 @@ export interface LaunchRequestInput {
 	prompt: string;
 	description: string;
 	/** The model (`provider/id`) and thinking level the launch would run without a policy. */
-	requested: { model?: string; thinking?: ThinkingLevel };
+	requested: { model?: string; thinking?: ThinkingLevel; maxTurns?: number };
 	context: ContextMode;
 	isBackground: boolean;
 	parentTools: readonly ParentToolInfo[];
@@ -126,5 +126,6 @@ function definedOnly(
 	const out: LaunchRequest["requested"] = {};
 	if (requested.model !== undefined) out.model = requested.model;
 	if (requested.thinking !== undefined) out.thinking = requested.thinking;
+	if (requested.maxTurns !== undefined) out.maxTurns = requested.maxTurns;
 	return out;
 }

@@ -1,0 +1,179 @@
+## MODIFIED Requirements
+
+### Requirement: Launch request given to the policy
+The policy SHALL receive:
+- `agentId`, and `agentType` as resolved.
+- `agent`, the agent snapshot from `executor-agent-registry`.
+- `origin`: `{ kind: "tool", toolCallId }` or `{ kind: "service" }`.
+- `parentSessionId`.
+- `prompt` and `description`.
+- `metadata`, the caller's launch metadata from `launch-metadata`, frozen, only when the launch carries metadata. A launch without metadata, and every tool-call launch, MUST omit the field.
+- `requested`: the caller's `model` and `thinking` after `locked` fields were applied. For a fork, an unlocked field with no caller value is the parent's model or thinking.
+- `requested.maxTurns`: the turn limit the launch runs with when the policy changes nothing, resolved as the session resolves it (the caller's `max_turns` or service `maxTurns`, else the agent's `maxTurns`, else the `defaultMaxTurns` setting, raised to the minimum of 2; an agent `maxTurns` of 0 means no limit). It MUST be absent when the launch has no limit.
+- `locked`, the lockable fields the agent locks.
+- `context`, the launch's resolved context (`fresh` or `fork`, after any fallback), and `isBackground`.
+- `toolSet`, with:
+  - `declared`: the agent's `tools`, or `null`;
+  - `disallowed`;
+  - `defaults`: the tools the child would get with no policy;
+  - `parentTools`: the parent session's tool names, minus tools of extensions excluded by `excludedExtensionPackages` and by the launch's own `excludeExtensionPackages` (see `launch-resources`). Being listed does not guarantee the child will have the tool; see "Grants are checked in the child".
+- An `AbortSignal`.
+
+`parentTools` MUST exclude the executor's own orchestration tools: `subagent`, `get_subagent_result`, `steer_subagent`, `ask_parent`, `notify_parent` and `submit_result`. The request MUST NOT carry `inheritContext`.
+
+#### Scenario: Tool-call origin
+- **WHEN** `subagent` call `call_7` launches agent `explore` with `model` `fixture/fixture-main`
+- **THEN** the policy receives `origin` `{ kind: "tool", toolCallId: "call_7" }`, `agentType` `explore`, `context` `fresh` and `requested.model` `fixture/fixture-main`
+
+#### Scenario: Orchestration tools never offered
+- **WHEN** the parent session has `read`, `subagent` and `web_search`
+- **THEN** `toolSet.parentTools` is `read` and `web_search`
+
+#### Scenario: Protocol tools never offered
+- **WHEN** the parent session has `read`, `ask_parent` and `submit_result`
+- **THEN** `toolSet.parentTools` is `read`
+
+#### Scenario: Excluded extension's tool not offered
+- **WHEN** the parent has tool `deploy` from a package listed in `excludedExtensionPackages`
+- **THEN** `toolSet.parentTools` does not contain `deploy`
+
+#### Scenario: Locked caller value not requested
+- **WHEN** the agent locks `model` and the caller asks for another model
+- **THEN** `requested.model` is the agent's model and `locked` contains `model`
+
+#### Scenario: Fork request
+- **WHEN** a caller forks `explore` with no model from a parent on `fixture/fixture-main`
+- **THEN** the policy receives `context` `fork` and `requested.model` `fixture/fixture-main`
+
+#### Scenario: Locked fork request
+- **WHEN** an agent locks `model`, and a caller forks it passing another model
+- **THEN** `requested.model` is the agent's model
+
+#### Scenario: Fallen-back fork
+- **WHEN** an agent default `fork` falls back to `fresh` for lack of a parent session
+- **THEN** the policy receives `context` `fresh`
+
+#### Scenario: Service launch with metadata
+- **WHEN** an extension calls `spawn("implementer", ...)` with `metadata` `{ "change": "c1" }`
+- **THEN** the policy receives `origin` `{ kind: "service" }` and `metadata` `{ "change": "c1" }`, and writing to `metadata` throws or has no effect
+
+#### Scenario: No metadata in the request
+- **WHEN** a launch carries no metadata, or comes from a `subagent` tool call
+- **THEN** the request has no `metadata` field
+
+#### Scenario: Launch-excluded extension's tool not offered
+- **WHEN** the parent has tool `flow_tool` from package `npm:flow-pack`, which is not in `excludedExtensionPackages`, and an extension spawns with `excludeExtensionPackages` `["npm:flow-pack"]`
+- **THEN** `toolSet.parentTools` does not contain `flow_tool`, and a sibling launch without the field is offered it
+
+#### Scenario: Caller's turn limit requested
+- **WHEN** a `subagent` call launches `explore` with `max_turns` 20
+- **THEN** the policy receives `requested.maxTurns` 20
+
+#### Scenario: Default turn limit requested
+- **WHEN** the agent sets no `max_turns`, the call passes none, and the `defaultMaxTurns` setting is 30
+- **THEN** the policy receives `requested.maxTurns` 30
+
+#### Scenario: Service launch turn limit requested
+- **WHEN** an extension calls `spawn("explore", ...)` with `maxTurns` 20
+- **THEN** the policy receives `requested.maxTurns` 20
+
+#### Scenario: Agent turn limit requested
+- **WHEN** the agent declares `max_turns: 15` and the launch passes no limit
+- **THEN** the policy receives `requested.maxTurns` 15
+
+#### Scenario: Unlimited launch requests no turn limit
+- **WHEN** neither the call, the agent nor the `defaultMaxTurns` setting sets a turn limit
+- **THEN** the request's `requested` has no `maxTurns` field
+
+### Requirement: Applying the policy's adjustment
+The policy SHALL return either nothing or an adjustment with optional `model`, `thinking`, `maxTurns`, `addTools` and `removeTools`. The executor SHALL apply these rules:
+- A returned `model` or `thinking` replaces the requested value, unless that field is locked.
+- A returned `maxTurns` replaces the requested turn limit only when it is greater than `requested.maxTurns`. It MUST NOT apply when it is equal to or lower than `requested.maxTurns`, when the launch has no turn limit, or when the agent locks `max_turns`. The applied limit is the child session's turn limit, for its first run and for every resume.
+- `addTools` entries are applied only when they appear in `toolSet.parentTools` and not in `toolSet.disallowed`.
+- `removeTools` entries are applied only when they do not appear in `toolSet.declared`.
+- For a fork (see `subagent-context-mode`), an applied removal makes the tool refused when called instead of absent, so the fork's declarations stay the parent's. An applied grant makes a parent tool callable.
+- For a fork, a returned `model` or `thinking` also takes precedence over the caller's value.
+- Any entry that breaks the rules above is dropped with a debug note; the rest of the adjustment still applies.
+- A `maxTurns` that is not a positive integer is not an entry that breaks a rule: it makes the whole adjustment malformed (see "The policy fails open").
+- Returning nothing leaves the launch unchanged.
+
+A granted Pi built-in such as `codemode` SHALL load the built-in extension that supplies it, as when the agent names it in `tools`.
+
+#### Scenario: Model and thinking applied
+- **WHEN** the policy returns `model` `fixture/fixture-fast` and `thinking` `low`
+- **THEN** the child's first provider request uses `fixture-fast` with reasoning effort `low`
+
+#### Scenario: Locked field kept
+- **WHEN** the agent locks `thinking` and the policy returns `thinking` `max`
+- **THEN** the child runs with the agent's thinking and the executor writes a debug note
+
+#### Scenario: Extension tool granted
+- **WHEN** the agent declares no `tools`, the parent has extension tool `web_search`, and the policy returns `addTools` `web_search`
+- **THEN** the child's first provider request offers `web_search`, and a call to it executes
+
+#### Scenario: Declared tool not removable
+- **WHEN** the agent declares `tools: read, edit` and the policy returns `removeTools` `edit`
+- **THEN** the child offers `edit`
+
+#### Scenario: Default tool removed
+- **WHEN** the agent declares no `tools`, the launch is fresh, and the policy returns `removeTools` `bash`
+- **THEN** the child does not offer `bash`, and a call to `bash` returns an error result
+
+#### Scenario: Grant outside the parent's tools dropped
+- **WHEN** the policy returns `addTools` `not_registered`
+- **THEN** no tool is added, the launch runs, and the executor writes a debug note
+
+#### Scenario: Removal in a fork
+- **WHEN** the policy returns `removeTools` `bash` for a fork of an agent with no `tools`, from a parent with `bash`
+- **THEN** the fork's first request still offers `bash`, and a call to `bash` is refused
+
+#### Scenario: Turn limit raised
+- **WHEN** a `subagent` call launches `explore` with `max_turns` 20 and the policy returns `maxTurns` 60
+- **THEN** the child runs with a turn limit of 60, and the record's `turnBudget.maxTurns` is 60
+
+#### Scenario: Lower turn limit refused
+- **WHEN** a `subagent` call launches `explore` with `max_turns` 40 and the policy returns `maxTurns` 10
+- **THEN** the child runs with a turn limit of 40, and the executor writes a debug note
+
+#### Scenario: Equal turn limit refused
+- **WHEN** a `subagent` call launches `explore` with `max_turns` 40 and the policy returns `maxTurns` 40
+- **THEN** the child runs with a turn limit of 40, and the executor writes a debug note
+
+#### Scenario: Unlimited launch stays unlimited
+- **WHEN** a launch has no turn limit and the policy returns `maxTurns` 80
+- **THEN** the child runs with no turn limit, and the executor writes a debug note
+
+#### Scenario: Locked turn limit kept
+- **WHEN** the agent declares `max_turns: 10` and locks `max_turns`, a `subagent` call launches it with no `max_turns`, and the policy returns `maxTurns` 50
+- **THEN** the child runs with a turn limit of 10, and the executor writes a debug note
+
+#### Scenario: Locked turn limit kept for a service launch
+- **WHEN** the agent declares `max_turns: 10` and locks `max_turns`, an extension calls `spawn` with `maxTurns` 5, and the policy returns `maxTurns` 50
+- **THEN** the policy receives `requested.maxTurns` 5, the child runs with a turn limit of 5, and the executor writes a debug note
+
+#### Scenario: Raised limit survives a resume
+- **WHEN** the policy raised a launch's turn limit from 20 to 60, the run ends, and the main model resumes the agent
+- **THEN** the resumed run has a turn limit of 60, and the policy is not called
+
+#### Scenario: Raise beside other fields
+- **WHEN** the policy returns `thinking` `high` and `maxTurns` 10 for a launch whose `requested.maxTurns` is 40
+- **THEN** the child runs with thinking `high` and a turn limit of 40
+
+### Requirement: The policy fails open
+If the policy throws, rejects, returns a value that is not an adjustment, or does not settle within `timeoutMs`, the executor SHALL launch as if no policy were registered and SHALL abort the signal it passed. When the launch is cancelled while the policy runs, the executor SHALL abort the signal and cancel the launch as upstream does. A failing policy MUST NOT fail, block beyond `timeoutMs`, or change the result of a launch.
+
+#### Scenario: Policy throws
+- **WHEN** the policy throws
+- **THEN** the child runs with the requested model, thinking and tools
+
+#### Scenario: Policy too slow
+- **WHEN** `timeoutMs` is 200 and the policy settles after 1000 ms
+- **THEN** the child session is created after about 200 ms with the requested values, and the policy's signal is aborted
+
+#### Scenario: Malformed adjustment
+- **WHEN** the policy returns `{ model: 42 }`
+- **THEN** the child runs with the requested values
+
+#### Scenario: Malformed turn limit
+- **WHEN** the policy returns `{ thinking: "low", maxTurns: 2.5 }`, or `maxTurns` 0
+- **THEN** the child runs with the requested thinking (not `low`) and the requested turn limit

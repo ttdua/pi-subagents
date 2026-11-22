@@ -79,6 +79,8 @@ interface Options {
 	bind?: (index: number) => void | Promise<void>;
 	/** The parent snapshot spawns are made from; `snapshot` (no branch) by default. */
 	snapshot?: ParentSnapshot;
+	/** The `defaultMaxTurns` setting; unset means no default limit. */
+	defaultMaxTurns?: number;
 }
 
 function harness(options: Options = {}) {
@@ -109,6 +111,8 @@ function harness(options: Options = {}) {
 			Object.assign(session, {
 				model: opts.model ?? MAIN,
 				thinkingLevel: opts.thinkingLevel ?? "off",
+				// A limit of 2 warns before the first turn.
+				sendCustomMessage: vi.fn(async () => undefined),
 				getAllTools: () =>
 					opts.tools.map((name) => ({ name, exposure: "direct" })),
 			});
@@ -135,6 +139,11 @@ function harness(options: Options = {}) {
 		createSubagentSession: (params) =>
 			createSubagentSession(params, sessionDeps),
 		baseCwd: "/repo",
+		getRunConfig: () => ({
+			defaultMaxTurns: options.defaultMaxTurns,
+			wrapUpTurns: 2,
+			midRunUpdates: true,
+		}),
 		limiter: new ConcurrencyLimiter(() => options.maxConcurrent ?? 4),
 		registry,
 		launchContext: {
@@ -163,7 +172,7 @@ function harness(options: Options = {}) {
 	const tool = new AgentTool(
 		manager,
 		runtime,
-		{ defaultMaxTurns: undefined, maxConcurrent: 4 },
+		{ defaultMaxTurns: options.defaultMaxTurns, maxConcurrent: 4 },
 		registry,
 		"/home/user/.pi",
 	);
@@ -198,6 +207,11 @@ function register(
 	const policy = vi.fn(impl);
 	h.service.registerLaunchPolicy(policy, { timeoutMs });
 	return policy;
+}
+
+/** The turn limit the i-th launch's record carries; undefined when unlimited. */
+function limitOf(h: ReturnType<typeof harness>, i = 0): number | undefined {
+	return h.manager.listAgents()[i]!.turnBudget?.maxTurns;
 }
 
 function requestOf(policy: ReturnType<typeof vi.fn>, i = 0): LaunchRequest {
@@ -359,6 +373,64 @@ describe("when the policy runs", () => {
 });
 
 describe("launch request", () => {
+	it("requested.maxTurns is the caller's max_turns", async () => {
+		const h = harness();
+		const policy = register(h);
+
+		await h.call("call_1", { ...explore, max_turns: 20 });
+
+		expect(requestOf(policy).requested.maxTurns).toBe(20);
+	});
+
+	it("requested.maxTurns falls back to defaultMaxTurns", async () => {
+		const h = harness({ defaultMaxTurns: 30 });
+		const policy = register(h);
+
+		await h.call("call_1", explore);
+
+		expect(requestOf(policy).requested.maxTurns).toBe(30);
+	});
+
+	it("requested.maxTurns is the agent's max_turns", async () => {
+		const h = harness({ agent: { maxTurns: 15 } });
+		const policy = register(h);
+
+		await h.call("call_1", explore);
+
+		expect(requestOf(policy).requested.maxTurns).toBe(15);
+	});
+
+	it("a service launch requests its maxTurns", async () => {
+		const h = harness();
+		const policy = register(h);
+
+		const id = await h.service.spawn("Explore", "go", {
+			description: "d",
+			maxTurns: 20,
+		});
+		await h.manager.getRecord(id)!.promise;
+
+		expect(requestOf(policy).requested.maxTurns).toBe(20);
+	});
+
+	it("an unlimited launch requests no maxTurns", async () => {
+		const h = harness();
+		const policy = register(h);
+
+		await h.call("call_1", explore);
+
+		expect("maxTurns" in requestOf(policy).requested).toBe(false);
+	});
+
+	it("agent max_turns 0 stays unlimited", async () => {
+		const h = harness({ agent: { maxTurns: 0 }, defaultMaxTurns: 30 });
+		const policy = register(h);
+
+		await h.call("call_1", explore);
+
+		expect("maxTurns" in requestOf(policy).requested).toBe(false);
+	});
+
 	it("tool-call origin, agent type and requested model", async () => {
 		const h = harness();
 		const policy = register(h);
@@ -540,6 +612,102 @@ describe("launch request", () => {
 });
 
 describe("applying the adjustment", () => {
+	it("a higher maxTurns raises the limit", async () => {
+		const h = harness();
+		register(h, () => ({ maxTurns: 60 }));
+
+		await h.call("call_1", { ...explore, max_turns: 20 });
+
+		expect(limitOf(h)).toBe(60);
+	});
+
+	it("a lower maxTurns is refused", async () => {
+		const h = harness();
+		register(h, () => ({ maxTurns: 10 }));
+
+		await h.call("call_1", { ...explore, max_turns: 40 });
+
+		expect(limitOf(h)).toBe(40);
+		expect(warnings.some((w) => w.includes("maxTurns"))).toBe(true);
+	});
+
+	it("an equal maxTurns is refused", async () => {
+		const h = harness();
+		register(h, () => ({ maxTurns: 40 }));
+
+		await h.call("call_1", { ...explore, max_turns: 40 });
+
+		expect(limitOf(h)).toBe(40);
+		expect(warnings.some((w) => w.includes("maxTurns"))).toBe(true);
+	});
+
+	it("a raise below the minimum is refused", async () => {
+		const h = harness();
+		register(h, () => ({ maxTurns: 1 }));
+
+		await h.call("call_1", { ...explore, max_turns: 2 });
+
+		expect(limitOf(h)).toBe(2);
+		expect(warnings.some((w) => w.includes("maxTurns"))).toBe(true);
+	});
+
+	it("an unlimited launch stays unlimited", async () => {
+		const h = harness();
+		register(h, () => ({ maxTurns: 80 }));
+
+		await h.call("call_1", explore);
+
+		expect(limitOf(h)).toBeUndefined();
+		expect(warnings.some((w) => w.includes("maxTurns"))).toBe(true);
+	});
+
+	it("a locked max_turns is kept", async () => {
+		const h = harness({ agent: { maxTurns: 10, locked: ["max_turns"] } });
+		register(h, () => ({ maxTurns: 50 }));
+
+		await h.call("call_1", explore);
+
+		expect(limitOf(h)).toBe(10);
+		expect(warnings.some((w) => w.includes("maxTurns"))).toBe(true);
+	});
+
+	it("a locked max_turns is kept for a service launch", async () => {
+		const h = harness({ agent: { maxTurns: 10, locked: ["max_turns"] } });
+		const policy = register(h, () => ({ maxTurns: 50 }));
+
+		const id = await h.service.spawn("Explore", "go", {
+			description: "d",
+			maxTurns: 5,
+		});
+		await h.manager.getRecord(id)!.promise;
+
+		expect(requestOf(policy).requested.maxTurns).toBe(5);
+		expect(limitOf(h)).toBe(5);
+		expect(warnings.some((w) => w.includes("maxTurns"))).toBe(true);
+	});
+
+	it("a refused raise keeps the other fields", async () => {
+		const h = harness();
+		register(h, () => ({ thinking: "high", maxTurns: 10 }));
+
+		await h.call("call_1", { ...explore, max_turns: 40 });
+
+		expect(h.sessionOpts().thinkingLevel).toBe("high");
+		expect(limitOf(h)).toBe(40);
+	});
+
+	it("the raised limit survives a resume", async () => {
+		const h = harness();
+		const policy = register(h, () => ({ maxTurns: 60 }));
+		await h.call("call_1", { ...explore, max_turns: 20 });
+		const id = h.manager.listAgents()[0]!.id;
+
+		await h.call("call_2", { ...explore, prompt: "more", resume: id });
+
+		expect(limitOf(h)).toBe(60);
+		expect(policy).toHaveBeenCalledOnce();
+	});
+
 	it("model and thinking are applied", async () => {
 		const h = harness();
 		register(h, () => ({ model: "fixture/fixture-fast", thinking: "low" }));
@@ -694,6 +862,19 @@ describe("the plan's accepted removals", () => {
 });
 
 describe("the policy fails open", () => {
+	it.each([2.5, 0])("a malformed maxTurns %s leaves the requested values", async (value) => {
+		const h = harness();
+		const policy = register(h, () => ({ thinking: "low", maxTurns: value }) as LaunchAdjustment);
+
+		await h.call("call_1", { ...explore, max_turns: 20 });
+
+		expect(h.sessionOpts().thinkingLevel).toBe(
+			requestOf(policy).requested.thinking,
+		);
+		expect(h.sessionOpts().thinkingLevel).not.toBe("low");
+		expect(limitOf(h)).toBe(20);
+	});
+
 	it("a throwing policy leaves the requested values", async () => {
 		const h = harness();
 		register(h, () => {
@@ -940,6 +1121,10 @@ describe("validAdjustment", () => {
 		[{ thinking: "huge" }, undefined],
 		[{ addTools: "web_search" }, undefined],
 		[{ removeTools: [1] }, undefined],
+		[{ maxTurns: 2.5 }, undefined],
+		[{ maxTurns: 0 }, undefined],
+		[{ maxTurns: -3 }, undefined],
+		[{ maxTurns: "60" }, undefined],
 	])("rejects %j", (value, expected) => {
 		expect(validAdjustment(value)).toBe(expected);
 	});
@@ -948,6 +1133,7 @@ describe("validAdjustment", () => {
 		const value: LaunchAdjustment = {
 			model: "fixture/fixture-fast",
 			thinking: "low",
+			maxTurns: 60,
 			addTools: ["web_search"],
 			removeTools: ["bash"],
 		};

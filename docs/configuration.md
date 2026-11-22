@@ -137,6 +137,7 @@ All fields are optional — sensible defaults for everything.
 
 The caller decides, and the agent file fills the gaps.
 A `subagent` tool parameter wins over the agent file's value for `model`, `thinking`, `max_turns`, `context`, and `run_in_background`; the agent file supplies whichever of those the caller left unset.
+For `max_turns`, the order is: the caller, then the agent file, then `defaultMaxTurns`; a launch policy may then raise the result, and a locked `max_turns` blocks that raise.
 
 ### Locking fields against callers
 

@@ -179,14 +179,21 @@ export function validAdjustment(value: unknown): LaunchAdjustment | undefined {
 	const thinking =
 		raw.thinking === undefined ? undefined : parseThinkingLevel(raw.thinking);
 	if (raw.thinking !== undefined && thinking === undefined) return undefined;
+	if (raw.maxTurns !== undefined && !isPositiveInteger(raw.maxTurns))
+		return undefined;
 	if (!isOptionalNameList(raw.addTools) || !isOptionalNameList(raw.removeTools))
 		return undefined;
 	return pickDefined({
 		model: raw.model as string | undefined,
 		thinking,
+		maxTurns: raw.maxTurns as number | undefined,
 		addTools: raw.addTools as readonly string[] | undefined,
 		removeTools: raw.removeTools as readonly string[] | undefined,
 	});
+}
+
+function isPositiveInteger(value: unknown): boolean {
+	return Number.isSafeInteger(value) && (value as number) > 0;
 }
 
 function isOptionalNameList(value: unknown): boolean {
@@ -200,6 +207,7 @@ function pickDefined(adjustment: LaunchAdjustment): LaunchAdjustment {
 	const out: LaunchAdjustment = {};
 	if (adjustment.model !== undefined) out.model = adjustment.model;
 	if (adjustment.thinking !== undefined) out.thinking = adjustment.thinking;
+	if (adjustment.maxTurns !== undefined) out.maxTurns = adjustment.maxTurns;
 	if (adjustment.addTools !== undefined)
 		out.addTools = [...adjustment.addTools];
 	if (adjustment.removeTools !== undefined)

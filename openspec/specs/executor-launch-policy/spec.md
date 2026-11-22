@@ -48,6 +48,7 @@ The policy SHALL receive:
 - `prompt` and `description`.
 - `metadata`, the caller's launch metadata from `launch-metadata`, frozen, only when the launch carries metadata. A launch without metadata, and every tool-call launch, MUST omit the field.
 - `requested`: the caller's `model` and `thinking` after `locked` fields were applied. For a fork, an unlocked field with no caller value is the parent's model or thinking.
+- `requested.maxTurns`: the turn limit the launch runs with when the policy changes nothing, resolved as the session resolves it (the caller's `max_turns` or service `maxTurns`, else the agent's `maxTurns`, else the `defaultMaxTurns` setting, raised to the minimum of 2; an agent `maxTurns` of 0 means no limit). It MUST be absent when the launch has no limit.
 - `locked`, the lockable fields the agent locks.
 - `context`, the launch's resolved context (`fresh` or `fork`, after any fallback), and `isBackground`.
 - `toolSet`, with:
@@ -103,14 +104,36 @@ The policy SHALL receive:
 - **WHEN** the parent has tool `flow_tool` from package `npm:flow-pack`, which is not in `excludedExtensionPackages`, and an extension spawns with `excludeExtensionPackages` `["npm:flow-pack"]`
 - **THEN** `toolSet.parentTools` does not contain `flow_tool`, and a sibling launch without the field is offered it
 
+#### Scenario: Caller's turn limit requested
+- **WHEN** a `subagent` call launches `explore` with `max_turns` 20
+- **THEN** the policy receives `requested.maxTurns` 20
+
+#### Scenario: Default turn limit requested
+- **WHEN** the agent sets no `max_turns`, the call passes none, and the `defaultMaxTurns` setting is 30
+- **THEN** the policy receives `requested.maxTurns` 30
+
+#### Scenario: Service launch turn limit requested
+- **WHEN** an extension calls `spawn("explore", ...)` with `maxTurns` 20
+- **THEN** the policy receives `requested.maxTurns` 20
+
+#### Scenario: Agent turn limit requested
+- **WHEN** the agent declares `max_turns: 15` and the launch passes no limit
+- **THEN** the policy receives `requested.maxTurns` 15
+
+#### Scenario: Unlimited launch requests no turn limit
+- **WHEN** neither the call, the agent nor the `defaultMaxTurns` setting sets a turn limit
+- **THEN** the request's `requested` has no `maxTurns` field
+
 ### Requirement: Applying the policy's adjustment
-The policy SHALL return either nothing or an adjustment with optional `model`, `thinking`, `addTools` and `removeTools`. The executor SHALL apply these rules:
+The policy SHALL return either nothing or an adjustment with optional `model`, `thinking`, `maxTurns`, `addTools` and `removeTools`. The executor SHALL apply these rules:
 - A returned `model` or `thinking` replaces the requested value, unless that field is locked.
+- A returned `maxTurns` replaces the requested turn limit only when it is greater than `requested.maxTurns`. It MUST NOT apply when it is equal to or lower than `requested.maxTurns`, when the launch has no turn limit, or when the agent locks `max_turns`. The applied limit is the child session's turn limit, for its first run and for every resume.
 - `addTools` entries are applied only when they appear in `toolSet.parentTools` and not in `toolSet.disallowed`.
 - `removeTools` entries are applied only when they do not appear in `toolSet.declared`.
 - For a fork (see `subagent-context-mode`), an applied removal makes the tool refused when called instead of absent, so the fork's declarations stay the parent's. An applied grant makes a parent tool callable.
 - For a fork, a returned `model` or `thinking` also takes precedence over the caller's value.
-- Any entry that breaks these rules is dropped with a debug note; the rest of the adjustment still applies.
+- Any entry that breaks the rules above is dropped with a debug note; the rest of the adjustment still applies.
+- A `maxTurns` that is not a positive integer is not an entry that breaks a rule: it makes the whole adjustment malformed (see "The policy fails open").
 - Returning nothing leaves the launch unchanged.
 
 A granted Pi built-in such as `codemode` SHALL load the built-in extension that supplies it, as when the agent names it in `tools`.
@@ -143,6 +166,38 @@ A granted Pi built-in such as `codemode` SHALL load the built-in extension that 
 - **WHEN** the policy returns `removeTools` `bash` for a fork of an agent with no `tools`, from a parent with `bash`
 - **THEN** the fork's first request still offers `bash`, and a call to `bash` is refused
 
+#### Scenario: Turn limit raised
+- **WHEN** a `subagent` call launches `explore` with `max_turns` 20 and the policy returns `maxTurns` 60
+- **THEN** the child runs with a turn limit of 60, and the record's `turnBudget.maxTurns` is 60
+
+#### Scenario: Lower turn limit refused
+- **WHEN** a `subagent` call launches `explore` with `max_turns` 40 and the policy returns `maxTurns` 10
+- **THEN** the child runs with a turn limit of 40, and the executor writes a debug note
+
+#### Scenario: Equal turn limit refused
+- **WHEN** a `subagent` call launches `explore` with `max_turns` 40 and the policy returns `maxTurns` 40
+- **THEN** the child runs with a turn limit of 40, and the executor writes a debug note
+
+#### Scenario: Unlimited launch stays unlimited
+- **WHEN** a launch has no turn limit and the policy returns `maxTurns` 80
+- **THEN** the child runs with no turn limit, and the executor writes a debug note
+
+#### Scenario: Locked turn limit kept
+- **WHEN** the agent declares `max_turns: 10` and locks `max_turns`, a `subagent` call launches it with no `max_turns`, and the policy returns `maxTurns` 50
+- **THEN** the child runs with a turn limit of 10, and the executor writes a debug note
+
+#### Scenario: Locked turn limit kept for a service launch
+- **WHEN** the agent declares `max_turns: 10` and locks `max_turns`, an extension calls `spawn` with `maxTurns` 5, and the policy returns `maxTurns` 50
+- **THEN** the policy receives `requested.maxTurns` 5, the child runs with a turn limit of 5, and the executor writes a debug note
+
+#### Scenario: Raised limit survives a resume
+- **WHEN** the policy raised a launch's turn limit from 20 to 60, the run ends, and the main model resumes the agent
+- **THEN** the resumed run has a turn limit of 60, and the policy is not called
+
+#### Scenario: Raise beside other fields
+- **WHEN** the policy returns `thinking` `high` and `maxTurns` 10 for a launch whose `requested.maxTurns` is 40
+- **THEN** the child runs with thinking `high` and a turn limit of 40
+
 ### Requirement: Grants are checked in the child
 After the child's extensions are bound and before its first provider request, the executor SHALL check each granted tool in the child. A grant takes effect only when the child registered a tool of that name whose exposure lets the model call it; the executor MUST NOT change a tool's exposure. Any other grant SHALL be dropped with a debug note. The executor SHALL report the tools actually granted as `grantedTools` on `subagents:child:bound`, so a consumer counts only grants that took effect.
 
@@ -172,3 +227,7 @@ If the policy throws, rejects, returns a value that is not an adjustment, or doe
 #### Scenario: Malformed adjustment
 - **WHEN** the policy returns `{ model: 42 }`
 - **THEN** the child runs with the requested values
+
+#### Scenario: Malformed turn limit
+- **WHEN** the policy returns `{ thinking: "low", maxTurns: 2.5 }`, or `maxTurns` 0
+- **THEN** the child runs with the requested thinking (not `low`) and the requested turn limit
