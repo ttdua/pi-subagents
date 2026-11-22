@@ -273,6 +273,7 @@ An agent is told its remaining budget while it still has room to finish:
 Only successful turns count: a response that errored and was retried does not spend budget.
 The minimum `max_turns` is 2, one turn to work and one to answer; a smaller value runs with 2, and the spawn result says so.
 A resumed agent gets a fresh budget with its original ceiling.
+A launch policy may raise `max_turns`, never lower it or limit an unlimited run; `turnBudget.maxTurns` is the effective limit, while the spawn result's `max turns` tag shows what was asked.
 
 | Status      | Meaning                                   | Icon       |
 | ----------- | ----------------------------------------- | ---------- |
@@ -719,7 +720,7 @@ It keeps upstream's git history and adds:
 - **Package agents** — installed pi packages can contribute agents through `pi.subagents.agents`.
 - **`disallowed_tools`** frontmatter, applied after every other tool source.
 - **Agent registry** — `listAgentTypes()` and `getAgentType(name)` on the service.
-- **Launch policy** — `registerLaunchPolicy` lets one extension adjust model, thinking and tools for each launch.
+- **Launch policy** — registerLaunchPolicy lets one extension adjust model, thinking, tools and turn limit for each launch.
 - **Launch identity, metadata and resources** — child events carry `agentId`, `agentType`, `toolCallId`, launch `metadata`, and per-launch skills, excluded extension packages, `cwd` and context files.
 - **Service wait** — `wait()` on the service and `subagents:update` / `subagents:asked` events.
 - **Fleet list** — a below-editor list of `main` and the subagents.
