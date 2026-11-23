@@ -22,8 +22,8 @@
 
 ## Commits
 
-- **Range**: `6adb974..b63f139` (the receipt commit follows `b63f139`)
-- **Count**: `18`
+- **Range**: `6adb974..b0b56d2` (code through `b63f139`; then the receipt and the plan's contract-deviation notes)
+- **Count**: `20`
 
 ---
 
