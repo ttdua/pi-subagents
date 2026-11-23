@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 This fork's entries come first; upstream's are kept under "Upstream `@gotgenes/pi-subagents` history" below them.
 See `CONTRIBUTING.md` for the release steps.
 
+## Unreleased
+
+### Added
+
+- Herdr viewer column: inside Herdr, each subagent gets a read-only viewer in a column right of Pi (at most 4, overflow in the sidebar under Pi; finished viewers are hidden). `/subagents:sessions` focuses a running agent's viewer or opens a finished one as a popup, and falls back to the in-TUI pane. The fleet list's `Enter` is unchanged ([ADR 0015](docs/decisions/0015-subagent-viewers-in-a-herdr-column.md)).
+
 ## [0.2.0](https://github.com/ttdua/pi-subagents/releases/tag/v0.2.0) (2026-11-22)
 
 A launch policy can raise a launch's turn limit. Additive: existing policies and consumers are unaffected.
