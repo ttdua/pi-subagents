@@ -125,12 +125,15 @@ export class HerdrViewers implements SubagentManagerObserver {
 			this.poller.watch(record);
 			return;
 		}
-		if (await this.deps.processes.isLive(known.terminal)) {
-			this.deps.statusFiles.write(known.key, { state: "running" });
+		const live = await this.deps.processes.isLive(known.terminal);
+		if (this.disposed) return;
+		if (live) {
+			this.writeStatus(known.key, { state: "running" });
 			await this.deps.column.place(known.viewer);
 			return;
 		}
 		await this.forget(known);
+		if (this.disposed) return;
 		this.poller.watch(record);
 	}
 
@@ -138,21 +141,39 @@ export class HerdrViewers implements SubagentManagerObserver {
 		this.poller.unwatch(record.id);
 		const known = this.deps.registry.byKey(record.id);
 		if (known === undefined) return;
-		this.deps.statusFiles.write(known.key, statusFor(record.status));
+		this.writeStatus(known.key, statusFor(record.status));
 		await this.deps.column.hide(known.viewer);
 	}
 
 	private async fileReady(record: Subagent, outputFile: string): Promise<void> {
 		const { registry } = this.deps;
 		if (registry.byKey(record.id) !== undefined || registry.byOutputFile(outputFile) !== undefined) return;
-		const source = this.recordSource(record, outputFile);
+		await this.startPlaceRegister(this.recordSource(record, outputFile));
+	}
+
+	/**
+	 * Starts a viewer, places it when its child runs, then registers it. A viewer
+	 * whose start or placement lands after dispose is ended and not registered.
+	 */
+	private async startPlaceRegister(source: ViewerSource): Promise<ColumnViewer | undefined> {
 		const viewer = await this.startViewer(source);
-		if (viewer === undefined) return;
-		if (statusFor(record.status).state === "running") {
+		if (viewer === undefined) return undefined;
+		if (statusFor(source.status).state === "running") {
 			await this.deps.column.place(viewer);
-			if (this.endIfDisposed(viewer.terminal)) return;
+			if (this.endIfDisposed(viewer.terminal)) return undefined;
 		}
-		registry.add(source.key, { terminal: viewer.terminal, outputFile, viewer });
+		this.deps.registry.add(source.key, { terminal: viewer.terminal, outputFile: source.outputFile, viewer });
+		return viewer;
+	}
+
+	/** A failed write only loses the viewer's status line; the column work goes on. Never recreates the dir after dispose. */
+	private writeStatus(key: string, s: ViewerStatus): void {
+		if (this.disposed) return;
+		try {
+			this.deps.statusFiles.write(key, s);
+		} catch (err) {
+			debugLog(`herdr status write failed for ${key}`, err);
+		}
 	}
 
 	private async openNow(entry: NavigationEntry, outputFile: string): Promise<boolean> {
@@ -164,26 +185,26 @@ export class HerdrViewers implements SubagentManagerObserver {
 			return this.deps.column.focus(known.viewer);
 		}
 		const viewer = await this.liveViewer(known, this.entrySource(entry, outputFile));
-		if (viewer === undefined) return false;
+		if (viewer === undefined || this.disposed) return false;
 		return this.deps.column.peek(viewer);
 	}
 
-	/** The known viewer while its terminal is live; otherwise a newly started and registered one. */
+	/** The known viewer while its terminal is live; otherwise a newly started (and, if running, placed) one. */
 	private async liveViewer(known: RegisteredViewer | undefined, source: ViewerSource): Promise<ColumnViewer | undefined> {
 		if (known !== undefined) {
-			if (await this.deps.processes.isLive(known.terminal)) return known.viewer;
+			const live = await this.deps.processes.isLive(known.terminal);
+			if (this.disposed) return undefined;
+			if (live) return known.viewer;
 			await this.forget(known);
+			if (this.disposed) return undefined;
 		}
-		const viewer = await this.startViewer(source);
-		if (viewer === undefined) return undefined;
-		this.deps.registry.add(source.key, { terminal: viewer.terminal, outputFile: source.outputFile, viewer });
-		return viewer;
+		return this.startPlaceRegister(source);
 	}
 
 	/** Writes the initial status and starts the terminal; a start that lands after dispose is ended. */
 	private async startViewer(source: ViewerSource): Promise<ColumnViewer | undefined> {
 		const { statusFiles, processes, cwd } = this.deps;
-		statusFiles.write(source.key, statusFor(source.status));
+		this.writeStatus(source.key, statusFor(source.status));
 		const terminal = await processes.start({
 			key: source.key,
 			agentType: source.agentType,
@@ -208,7 +229,7 @@ export class HerdrViewers implements SubagentManagerObserver {
 		await this.deps.column.hide(known.viewer);
 	}
 
-	private recordSource(record: Subagent, outputFile: string): ViewerSource {
+	private recordSource(record: Pick<Subagent, "id" | "type" | "description" | "status">, outputFile: string): ViewerSource {
 		return {
 			key: record.id,
 			agentType: record.type,
@@ -219,16 +240,7 @@ export class HerdrViewers implements SubagentManagerObserver {
 	}
 
 	private entrySource(entry: NavigationEntry, outputFile: string): ViewerSource {
-		if (entry.kind === "live") {
-			const { record } = entry;
-			return {
-				key: record.id,
-				agentType: record.type,
-				title: this.deps.titleOf(record),
-				outputFile,
-				status: record.status,
-			};
-		}
+		if (entry.kind === "live") return this.recordSource(entry.record, outputFile);
 		return {
 			key: fileViewerKey(outputFile),
 			agentType: entry.heading.name,
