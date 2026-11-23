@@ -76,7 +76,7 @@ All 52 scenarios (47 `herdr-viewer-column`, 5 `fleet-view`) map to tests; the fu
 |---|---|
 | Enter opens the live pane | `test/ui/fleet-list.test.ts:401` "Enter on an agent calls open with its navigation entry" |
 | Released session opens from file | `test/ui/fleet-list.test.ts:416` "Enter on an agent with only outputFile opens a snapshot entry" |
-| Unreadable file | existing `test/ui/session-navigator.test.ts` unreadable-file test (unchanged) |
+| Unreadable file | `test/ui/session-navigator.test.ts:762` 'notifies "Could not read the session transcript file." and mounts nothing when readFile throws' |
 | Concurrent launches | `test/herdr/herdr-observer.test.ts:436` "places concurrent viewers one after another" |
 | RPC mode | `test/herdr/detect.test.ts:56` "RPC mode: is inactive and runs no command" |
 
