@@ -19,7 +19,7 @@ export interface DetectInput {
 	cli: HerdrCli;
 }
 
-interface TerminalLocation {
+export interface TerminalLocation {
 	spaceId: string;
 	tabId: string;
 }
@@ -35,19 +35,23 @@ async function readLocation(cli: HerdrCli, terminalId: string): Promise<Terminal
 	return { spaceId, tabId };
 }
 
-/** Pane of `terminalId` in the given space and tab, from `herdr-app ls`. */
-async function findParentPane(cli: HerdrCli, terminalId: string, location: TerminalLocation): Promise<string | undefined> {
+/** Terminal records of one tab from `herdr-app ls`; `undefined` when the call or the tab fails. */
+export async function readTabTerminals(cli: HerdrCli, location: TerminalLocation): Promise<unknown[] | undefined> {
 	const result = await cli.run("herdr-app", ["ls"]);
 	if (result.code !== 0) return undefined;
 	for (const space of asArray(asRecord(parseJson(result.stdout))?.spaces)) {
 		if (asString(asRecord(space)?.id) !== location.spaceId) continue;
 		for (const tab of asArray(asRecord(space)?.tabs)) {
-			if (asString(asRecord(tab)?.id) !== location.tabId) continue;
-			const pane = findTerminalPane(asArray(asRecord(tab)?.terminals), terminalId);
-			if (pane !== undefined) return pane;
+			if (asString(asRecord(tab)?.id) === location.tabId) return asArray(asRecord(tab)?.terminals);
 		}
 	}
 	return undefined;
+}
+
+/** Pane of `terminalId` in the given space and tab, from `herdr-app ls`. */
+async function findParentPane(cli: HerdrCli, terminalId: string, location: TerminalLocation): Promise<string | undefined> {
+	const terminals = await readTabTerminals(cli, location);
+	return terminals === undefined ? undefined : findTerminalPane(terminals, terminalId);
 }
 
 function findTerminalPane(terminals: unknown[], terminalId: string): string | undefined {

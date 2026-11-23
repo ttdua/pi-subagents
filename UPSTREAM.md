@@ -254,3 +254,6 @@ Outside the table below, the fork also changes repository files that upstream ke
 | `src/herdr/viewer.ts` | add | Standalone read-only transcript viewer Herdr runs per subagent (node: built-ins only). |
 | `test/herdr/viewer.test.ts` | add | Tests for viewer argument parsing, JSONL line splitting and entry rendering. |
 | `test/herdr/viewer.integration.test.ts` | add | Runs the real viewer file under the runtime: follow, rewrite, status, input discard, parent exit. |
+| `src/herdr/column.ts` | add | `ViewerColumn`: viewer placement in a right-hand column with waiting FIFO, via `herdr-app`. |
+| `test/herdr/column.test.ts` | add | Tests for column placement, focus restore, overflow, park and peek retry. |
+| `test/herdr/fake-herdr-app.ts` | add | `FakeHerdrCli` preset following a mutable pane model of `herdr-app`. |
