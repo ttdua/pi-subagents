@@ -58,4 +58,4 @@ Deviation from the schema's closeout (project policy override): AGENTS.md forbid
 
 ## Next step
 
-Wait for PR review. after approval, run `/opsx-archive` on this feature branch, push the archive commits to update the PR, and merge the PR (`gh pr merge --squash --delete-branch` or GitHub UI) — that single merge lands implementation + archive into main.
+Wait for PR review. After approval, run `/opsx-archive` on this feature branch, push the archive commits to update the PR, and merge the PR (`gh pr merge --squash --delete-branch` or GitHub UI) — that single merge lands implementation + archive into main.
