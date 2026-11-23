@@ -7,7 +7,7 @@
 
 **Change**: `herdr-subagent-column`
 **Finalized at**: `2026-11-23 21:20`
-**Outcome**: `pr-updated` (pending: push and PR wait for the user's explicit approval, per AGENTS.md "Git approval")
+**Outcome**: `pr-created`
 
 ---
 
@@ -15,10 +15,10 @@
 
 - **Branch**: `spec/herdr-subagent-column`
 - **Base branch**: `main`
-- **Final state**: `pr-updated` pending push — the worktree branch `herdr-subagent-column` was fast-forward merged into the feature branch locally; the feature branch has no remote yet
-- **PR URL**: N/A (not pushed yet)
+- **Final state**: `pr-open` — the worktree branch `herdr-subagent-column` was fast-forward merged into the feature branch, which was pushed after the user's explicit approval in chat
+- **PR URL**: https://github.com/ttdua/pi-subagents/pull/17
 
-Deviation from the schema's closeout (project policy override): AGENTS.md forbids push, merge or PR without the user's explicit approval in chat, so steps 10–12 (push, PR offer, PR comment) are held until the user approves. Step 3's `git pull` was skipped because the feature branch has no upstream. The worktree was removed with Worktrunk (`wt remove`), as AGENTS.md requires, instead of `git worktree remove`.
+Deviation from the schema's closeout (project policy override): AGENTS.md forbids push, merge or PR without the user's explicit approval in chat, so steps 10–12 (push, PR, PR comment) ran only after the user approved in chat. Step 3's `git pull` was skipped because the feature branch has no upstream. The worktree was removed with Worktrunk (`wt remove`), as AGENTS.md requires, instead of `git worktree remove`.
 
 ---
 
@@ -31,7 +31,7 @@ Deviation from the schema's closeout (project policy override): AGENTS.md forbid
 
 ## PR comment
 
-- **PR comment status**: `skipped (no PR)` — no PR exists yet; re-run the comment subroutine after the PR is opened
+- **PR comment status**: `posted`
 
 ---
 
@@ -58,4 +58,4 @@ Deviation from the schema's closeout (project policy override): AGENTS.md forbid
 
 ## Next step
 
-After the user approves pushing: push `spec/herdr-subagent-column`, open the PR, post the code-review orientation comment, and update this receipt. Then wait for PR code review; after approval, run `/opsx-archive` on this feature branch, push the archive commits to update the PR, and merge the PR (`gh pr merge --squash --delete-branch` or GitHub UI) — that single merge lands implementation + archive into main.
+Wait for PR review. after approval, run `/opsx-archive` on this feature branch, push the archive commits to update the PR, and merge the PR (`gh pr merge --squash --delete-branch` or GitHub UI) — that single merge lands implementation + archive into main.
