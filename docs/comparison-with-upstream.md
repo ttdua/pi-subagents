@@ -59,6 +59,7 @@ This fork is a minimal core that other extensions build on, plus a small compani
 - **`<active_agent>` system-prompt tag** — lets [`@gotgenes/pi-permission-system`](https://github.com/gotgenes/pi-packages/tree/main/packages/pi-permission-system) resolve per-agent `permission:` frontmatter (allow / ask / deny — richer than a binary denylist) inside the child session.
 - **Turn budgets** — `max_turns` is a hard ceiling rather than a wrap-up point followed by grace turns, the child is told its remaining turns while it still has room to answer, and the budget is live on the record and in the widget.
 - **Built-in role agents** — six role agents (`general`, `implementer`, `explore`, `scout`, `reviewer`, `verifier`) as Markdown files in `agents/`, and installed packages can add agents through `pi.subagents.agents`.
+- **Herdr viewer column** — inside Herdr, each subagent gets a read-only viewer in a column right of Pi (see [ADR 0015](./decisions/0015-subagent-viewers-in-a-herdr-column.md)).
 - **Companion packages** — permission policy and worktree isolation live in dedicated packages rather than the core.
 - **Re-architected codebase** — decomposed into seven domains behind a typed public API boundary, backed by ~994 tests.
 

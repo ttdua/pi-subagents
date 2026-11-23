@@ -134,6 +134,8 @@ export interface SessionNavigatorParams {
   readFile: (path: string) => string;
   /** The parent session's entries, whose run records outlive the manager's. */
   sessionEntries: readonly SessionEntryLike[];
+  /** Herdr viewers, when active: the pick opens there and the pane is skipped. */
+  herdr?: { open(entry: NavigationEntry): Promise<boolean> };
 }
 
 /** How a scroll move treats following new output; by default it follows when it lands on the bottom. */
@@ -165,7 +167,7 @@ export interface TranscriptPaneOptions {
  * holds, such as those from before a `/reload`.
  */
 export class SessionNavigatorHandler {
-  async handle({ ui, agents, registry, cwd, readFile, sessionEntries }: SessionNavigatorParams): Promise<void> {
+  async handle({ ui, agents, registry, cwd, readFile, sessionEntries, herdr }: SessionNavigatorParams): Promise<void> {
     const entries = listNavigableAgents(agents, registry, readPersistedRuns(sessionEntries));
     if (entries.length === 0) {
       ui.notify("No subagent sessions to view.", "info");
@@ -179,6 +181,7 @@ export class SessionNavigatorHandler {
     const entry = entries.find((candidate) => candidate.label === choice);
     if (!entry) return;
 
+    if (await herdr?.open(entry)) return;
     await openTranscript(ui, entry, { cwd, readFile });
   }
 }

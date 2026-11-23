@@ -10,6 +10,7 @@ date: 2026-11-12
 Accepted.
 Takes the "widget gesture" that [ADR 0004] Criterion 3 left as a later option.
 It adds a navigation surface and does not change the read-only rule of Criterion 2.
+Amended by [ADR 0015]: inside Herdr, `/subagents:sessions` may open a Herdr viewer; the fleet list is unchanged.
 
 ## Context
 
@@ -59,3 +60,4 @@ Where the fork's conventions differ (no agent colors, no cost, no viewer), the p
   Each is listed in `UPSTREAM.md`, and upstream sync must carry them.
 
 [ADR 0004]: 0004-reconsider-ui-direction.md
+[ADR 0015]: 0015-subagent-viewers-in-a-herdr-column.md

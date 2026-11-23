@@ -57,6 +57,9 @@ function makePi() {
 function makeUI() {
   const unsubscribe = vi.fn();
   return {
+    custom: vi.fn(async () => undefined),
+    select: vi.fn(),
+    notify: vi.fn(),
     setStatus: vi.fn(),
     setWidget: vi.fn(),
     onTerminalInput: vi.fn(() => unsubscribe),
@@ -105,6 +108,7 @@ afterEach(() => {
   else process.env.PI_CODING_AGENT_DIR = originalAgentDir;
   vi.mocked(process.cwd).mockRestore();
   vi.useRealTimers();
+  vi.unstubAllEnvs();
   unpublishSubagentsService();
   rmSync(projectDir, { recursive: true, force: true });
 });
@@ -176,5 +180,41 @@ describe("fleet list wiring", () => {
     await fire("session_shutdown", {}, {});
 
     expect(ui.unsubscribe).toHaveBeenCalled();
+  });
+
+  it("Enter unchanged inside Herdr: the fleet opens the pane and issues no herdr-app command after detection", async () => {
+    vi.stubEnv("HC_TERMINAL_ID", "t3s");
+    const { pi, fire } = makePi();
+    const hcGet = JSON.stringify({ address: "t3s", labels: { "herdr.space": "sp1", "herdr.tab": "tb1" }, state: "live" });
+    const appLs = JSON.stringify({
+      spaces: [{ id: "sp1", name: "m", tabs: [{ id: "tb1", name: "1", terminals: [{ terminal: "t3s", pane: "p1", status: "working", app: "pi", name: null, sub_agents: [] }] }] }],
+    });
+    pi.exec = vi.fn(async (cmd: string, args: string[]) => ({
+      code: cmd === "hc" && args[0] === "get" || cmd === "herdr-app" ? 0 : 1,
+      stdout: cmd === "hc" ? hcGet : appLs,
+      stderr: "",
+      killed: false,
+    }));
+    subagentsExtension(pi);
+    const ui = makeUI();
+    await fire("session_start", {}, { ...sessionCtx(ui), mode: "tui" });
+    getSubagentsService()!.spawn("general-purpose", "hi", { description: "child" });
+    await vi.advanceTimersByTimeAsync(1000);
+    const appCallsAfterDetection = (pi.exec as ReturnType<typeof vi.fn>).mock.calls.filter((call: unknown[]) => call[0] === "herdr-app").length;
+    expect(appCallsAfterDetection).toBeGreaterThan(0);
+
+    const editor = { getText: () => "", setText: vi.fn() };
+    const factory = fleetCalls(ui).at(-1)![1] as (tui: unknown, theme: unknown) => unknown;
+    factory({ getFocusedComponent: () => editor, requestRender: vi.fn() }, { fg: (_c: string, t: string) => t, bold: (t: string) => t });
+    const handleInput = (ui.onTerminalInput.mock.calls as unknown as Array<[(data: string) => unknown]>).at(-1)![0];
+    handleInput("\x1b[B"); // Down: enter the list
+    handleInput("\x1b[B"); // Down: select the child
+    handleInput("\r");
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(ui.custom).toHaveBeenCalled();
+    expect((pi.exec as ReturnType<typeof vi.fn>).mock.calls.filter((call: unknown[]) => call[0] === "herdr-app").length).toBe(appCallsAfterDetection);
+
+    await fire("session_shutdown", {}, {});
   });
 });

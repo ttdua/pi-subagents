@@ -534,6 +534,32 @@ describe("SessionNavigatorHandler", () => {
     expect(ui.custom).not.toHaveBeenCalled();
   });
 
+  describe("Herdr viewers", () => {
+    const LABEL = "general-purpose (Test task) · 2 tools · completed · 3.0s";
+
+    it("Command unchanged: without herdr the pane mounts", async () => {
+      const ui = makeUI(LABEL);
+      await handleWith(ui, [makeNavigable()]);
+      expect(ui.custom).toHaveBeenCalled();
+    });
+
+    it("opens in Herdr and skips the pane when open resolves true", async () => {
+      const ui = makeUI(LABEL);
+      const herdr = { open: vi.fn(async () => true) };
+      await handleWith(ui, [makeNavigable()], { herdr });
+      expect(herdr.open).toHaveBeenCalledOnce();
+      expect(ui.custom).not.toHaveBeenCalled();
+    });
+
+    it("falls back to the pane when open resolves false", async () => {
+      const ui = makeUI(LABEL);
+      const herdr = { open: vi.fn(async () => false) };
+      await handleWith(ui, [makeNavigable()], { herdr });
+      expect(herdr.open).toHaveBeenCalledOnce();
+      expect(ui.custom).toHaveBeenCalled();
+    });
+  });
+
   it("opens a read-only pane sourced from the picked record", async () => {
     const messages = [{ role: "assistant", content: [{ type: "text", text: "picked agent reply" }] }] as unknown as SessionMessage[];
     const record = makeNavigable({ agentMessages: messages });
