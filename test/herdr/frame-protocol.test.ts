@@ -70,6 +70,28 @@ describe("frame protocol", () => {
 		expect(sanitizeFrameLine("a\tb")).toBe("a b");
 	});
 
+	it("drops an OSC 8 whose hyperlink contains a newline", () => {
+		expect(sanitizeFrameLine("\x1b]8;;a\nb\x07X")).toBe("X");
+	});
+
+	it("drops an OSC 8 whose hyperlink contains a tab", () => {
+		expect(sanitizeFrameLine("\x1b]8;;u\tv\x07x")).toBe("x");
+	});
+
+	it("drops an OSC 8 terminated by C1 ST and the C1 CSI after it", () => {
+		expect(sanitizeFrameLine("\x1b]8;;u\x9c\x9b2J\x07")).toBe("");
+	});
+
+	it("drops C1 CSI, OSC and DCS inside an OSC 8 hyperlink", () => {
+		expect(sanitizeFrameLine("\x1b]8;;u\x9b31m\x07L")).toBe("L");
+		expect(sanitizeFrameLine("\x1b]8;;u\x9d0;t\x07L")).toBe("L");
+		expect(sanitizeFrameLine("\x1b]8;;u\x1bP1$r\x1b\\L\x07")).toBe("L");
+	});
+
+	it("drops an OSC 8 ended by C1 ST, keeping the SGR before it", () => {
+		expect(sanitizeFrameLine("\x1b[1mA\x1b]8;;u\x9cZ")).toBe("\x1b[1mAZ");
+	});
+
 	it("frames a wheel report split at every point", () => {
 		const report = "a\x1b[<64;3;4Mb";
 		for (let split = 0; split <= report.length; split++) {
@@ -83,6 +105,17 @@ describe("frame protocol", () => {
 		}
 	});
 
+	it("keeps a partial report followed by a newline or CRLF intact", () => {
+		const cases = ["\x1b\n", "\x1b\r\nq", "\x1b[<0;3\n", "\x1b[<0;3;4\r\n"];
+		for (const text of cases) {
+			for (let split = 0; split <= text.length; split++) {
+				const framer = new InputFramer();
+				const events = [...framer.push(text.slice(0, split)), ...framer.push(text.slice(split))];
+				expect(events.map((e) => (e.type === "input" ? e.data : "")).join("")).toBe(text);
+			}
+		}
+	});
+
 	it("drops non-wheel mouse reports", () => {
 		expect(new InputFramer().push("\x1b[<0;3;4M\x1b[<0;3;4m")).toEqual([]);
 	});
@@ -90,6 +123,23 @@ describe("frame protocol", () => {
 	it("passes a long unterminated report through as input", () => {
 		const report = `\x1b[<${"9".repeat(40)}`;
 		expect(new InputFramer().push(report)).toEqual([{ type: "input", data: report }]);
+	});
+
+	it("splits a line of blank messages without dropping the empty lines", () => {
+		const splitter = new MessageSplitter(1024);
+		expect(splitter.push("\n")).toEqual({ lines: [""], overflow: false });
+		expect(splitter.push("{}\n\n{}\n")).toEqual({ lines: ["{}", "", "{}"], overflow: false });
+	});
+
+	it("rejects chunkInput sizes that cannot make progress", () => {
+		expect(() => chunkInput("a", 0)).toThrow(RangeError);
+		expect(() => chunkInput("a", -1)).toThrow(RangeError);
+		expect(() => chunkInput("a", 1.5)).toThrow(RangeError);
+		expect(() => chunkInput("😀", 1)).toThrow(RangeError);
+	});
+
+	it("keeps astral characters whole at max = 2", () => {
+		expect(chunkInput("a😀b😀", 2)).toEqual(["a", "😀", "b", "😀"]);
 	});
 
 	it("chunks input at the cap without splitting a surrogate pair", () => {
