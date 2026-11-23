@@ -40,7 +40,7 @@ Blocked by: 4
 
 Blocked by: 5
 
-- [ ] 6.1 Add ADR `docs/decisions/0015-subagent-viewers-in-a-herdr-column.md`; add a "Herdr" section to `README.md`; add a line to `docs/comparison-with-upstream.md`; add an "Unreleased" entry to `CHANGELOG.md`
-- [ ] 6.2 Update `UPSTREAM.md`: extend the rows for every edited upstream file (`src/index.ts`, `src/ui/session-navigator.ts`, `test/ui/session-navigator.test.ts`, `test/composition-root.test.ts`, and any other test touched); add `add` rows for every new file under `src/herdr/` and `test/herdr/`
-- [ ] 6.3 Run `bun run check`, `bun run test`, `bun run lint`, `bun run lint:md`, `bun run verify:public-types` and `openspec validate --all`
-- [ ] 6.4 Manual E2E inside Herdr with the worktree loaded: 5 background children and 1 foreground child; column, focus, overflow, hide on finish, typing into a viewer, `/subagents:sessions` focus and popup, `/reload`, quit, and `kill -9` of Pi; record results in `apply.md`
+- [x] 6.1 Add ADR `docs/decisions/0015-subagent-viewers-in-a-herdr-column.md`; add a "Herdr" section to `README.md`; add a line to `docs/comparison-with-upstream.md`; add an "Unreleased" entry to `CHANGELOG.md`
+- [x] 6.2 Update `UPSTREAM.md`: extend the rows for every edited upstream file (`src/index.ts`, `src/ui/session-navigator.ts`, `test/ui/session-navigator.test.ts`, `test/composition-root.test.ts`, and any other test touched); add `add` rows for every new file under `src/herdr/` and `test/herdr/`
+- [x] 6.3 Run `bun run check`, `bun run test`, `bun run lint`, `bun run lint:md`, `bun run verify:public-types` and `openspec validate --all`
+- [x] 6.4 Manual E2E inside Herdr with the worktree loaded: 5 background children and 1 foreground child; column, focus, overflow, hide on finish, typing into a viewer, `/subagents:sessions` focus and popup, `/reload`, quit, and `kill -9` of Pi; record results in `apply.md`
