@@ -251,3 +251,6 @@ Outside the table below, the fork also changes repository files that upstream ke
 | `test/herdr/cli.test.ts` | add | Tests for the exec port result mapping and `HerdrQueue` ordering, failure and close. |
 | `test/herdr/detect.test.ts` | add | Tests for Herdr detection scenarios and malformed output. |
 | `test/herdr/fake-cli.ts` | add | `FakeHerdrCli` test double recording calls and scripting replies. |
+| `src/herdr/viewer.ts` | add | Standalone read-only transcript viewer Herdr runs per subagent (node: built-ins only). |
+| `test/herdr/viewer.test.ts` | add | Tests for viewer argument parsing, JSONL line splitting and entry rendering. |
+| `test/herdr/viewer.integration.test.ts` | add | Runs the real viewer file under the runtime: follow, rewrite, status, input discard, parent exit. |
