@@ -23,10 +23,10 @@ Blocked by: 1
 
 Blocked by: 1, 2, 3
 
-- [ ] 4.1 Add `src/herdr/runtime.ts` (`viewerRuntime`), `src/herdr/status-files.ts` (`ViewerStatusFiles`) and `src/herdr/viewer-process.ts` (`ViewerProcesses`: start with name retry, liveness, end) per design D3, D5, D8
-- [ ] 4.2 Add `src/herdr/viewer-registry.ts` (`ViewerRegistry`) and `src/herdr/output-file-poller.ts` (`OutputFilePoller`)
-- [ ] 4.3 Add `src/herdr/herdr-observer.ts`: `HerdrViewers` (the only queue owner: lifecycle hooks, `open(entry)`, `dispose()`) and `HerdrViewersSlot`, per design D1, D5, D7, D8
-- [ ] 4.4 Tests covering "Running and finished", "Viewer per child", "Finished child leaves the column", "Resumed child returns to the column", "Sessions command inside Herdr", "Sessions command falls back", "Viewer cleanup" and "Failure isolation"
+- [x] 4.1 Add `src/herdr/runtime.ts` (`viewerRuntime`), `src/herdr/status-files.ts` (`ViewerStatusFiles`) and `src/herdr/viewer-process.ts` (`ViewerProcesses`: start with name retry, liveness, end) per design D3, D5, D8
+- [x] 4.2 Add `src/herdr/viewer-registry.ts` (`ViewerRegistry`) and `src/herdr/output-file-poller.ts` (`OutputFilePoller`)
+- [x] 4.3 Add `src/herdr/herdr-observer.ts`: `HerdrViewers` (the only queue owner: lifecycle hooks, `open(entry)`, `dispose()`) and `HerdrViewersSlot`, per design D1, D5, D7, D8
+- [x] 4.4 Tests covering "Running and finished", "Viewer per child", "Finished child leaves the column", "Resumed child returns to the column", "Sessions command inside Herdr", "Sessions command falls back", "Viewer cleanup" and "Failure isolation"
 
 ## 5. Composition and sessions command
 
