@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 This fork's entries come first; upstream's are kept under "Upstream `@gotgenes/pi-subagents` history" below them.
 See `CONTRIBUTING.md` for the release steps.
 
-## Unreleased
+## [Unreleased]
 
 ### Added
 

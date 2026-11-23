@@ -270,3 +270,8 @@ Outside the table below, the fork also changes repository files that upstream ke
 | `test/herdr/herdr-observer.test.ts` | add | Scenario tests for viewer lifecycle, sessions `open`, ordering, failures and dispose. |
 | `src/herdr/activate.ts` | add | `activateHerdrViewers` and `HerdrActivation`: build the Herdr observer after detection and own its per-session lifetime. |
 | `test/herdr/activate.test.ts` | add | Tests for activation, viewer path and the session generation guard. |
+| `docs/decisions/0015-subagent-viewers-in-a-herdr-column.md` | seam | ADR for the Herdr viewer column; `/subagents:sessions` may open a Herdr viewer, the fleet list is unchanged. |
+| `docs/decisions/0013-fleet-list-opens-the-session-pane.md` | edit | Status line points to ADR 0015. |
+| `README.md` (Herdr) | edit | `Herdr` section: the viewer column, detection rule, `/subagents:sessions` inside Herdr and runtime limits. |
+| `CHANGELOG.md` (Herdr) | edit | Unreleased entry for the Herdr viewer column. |
+| `docs/comparison-with-upstream.md` (Herdr) | edit | Herdr viewer column listed among fork features. |

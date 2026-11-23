@@ -40,7 +40,7 @@ Inside Herdr, each child gets a read-only viewer in a column right of Pi.
 
 ## Consequences
 
-- `/subagents:sessions` inside Herdr is the one exception to [ADR 0013]'s "the fleet list opens the in-TUI pane and nothing else": the command may open a Herdr viewer. The fleet list's `Enter` is unchanged, and outside Herdr nothing changes.
+- `/subagents:sessions` inside Herdr is an exception to [ADR 0013]'s "no viewer" for the command only: it may open a Herdr viewer. The fleet list's `Enter` still opens only the in-TUI pane, and outside Herdr nothing changes.
 - The viewer is plain text and read-only: no steer, no input, no Pi components. Observation is the goal; `steer_subagent` stays the control path.
 - The viewer needs Bun or Node 22.18 or later (which strips types by default), else `node` on `PATH`. Compiled single-binary Pi installs without `node`, and installs under `node_modules` (Node does not strip types there), cannot start it. That means "no viewer", and the in-TUI pane still works.
 - Children launched before detection resolves get no column viewer; `/subagents:sessions` reaches them.
