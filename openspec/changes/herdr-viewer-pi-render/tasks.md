@@ -2,11 +2,11 @@
 
 Blocked by: none
 
-- [ ] 1.1 Add `src/herdr/frame-protocol.ts` (only `node:` built-ins, no Pi packages, erasable syntax): message types, `encodeMessage`, `parseViewerMessage`, `parsePiMessage` with field bounds, `MessageSplitter` with a per-line byte cap, and `chunkInput` splitting input at the data cap (design D1, D7)
-- [ ] 1.2 Add `sanitizeFrameLine` to `frame-protocol.ts`: keep SGR and OSC 8 only, drop every other escape sequence and C0/C1 control (design D2)
-- [ ] 1.3 Add `InputFramer` to `frame-protocol.ts`: stateful stdin framing that holds an incomplete SGR mouse report across chunks, emits wheel reports, drops other mouse reports and passes the rest through (design D7)
-- [ ] 1.4 Enable `allowImportingTsExtensions` in `tsconfig.json`
-- [ ] 1.5 Tests `test/herdr/frame-protocol.test.ts`: round trip, malformed, out-of-bounds and partial lines, line cap overflow, sanitizer payloads, input framing at every split point
+- [x] 1.1 Add `src/herdr/frame-protocol.ts` (only `node:` built-ins, no Pi packages, erasable syntax): message types, `encodeMessage`, `parseViewerMessage`, `parsePiMessage` with field bounds, `MessageSplitter` with a per-line byte cap, and `chunkInput` splitting input at the data cap (design D1, D7)
+- [x] 1.2 Add `sanitizeFrameLine` to `frame-protocol.ts`: keep SGR and OSC 8 only, drop every other escape sequence and C0/C1 control (design D2)
+- [x] 1.3 Add `InputFramer` to `frame-protocol.ts`: stateful stdin framing that holds an incomplete SGR mouse report across chunks, emits wheel reports, drops other mouse reports and passes the rest through (design D7)
+- [x] 1.4 Enable `allowImportingTsExtensions` in `tsconfig.json`
+- [x] 1.5 Tests `test/herdr/frame-protocol.test.ts`: round trip, malformed, out-of-bounds and partial lines, line cap overflow, sanitizer payloads, input framing at every split point
 
 ## 2. Viewer program as frame painter
 
