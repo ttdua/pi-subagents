@@ -13,6 +13,7 @@ import { asRecord, asString, parseJson } from "#src/herdr/json";
 export const MAX_COLUMN = 4;
 export const PEEK_ATTEMPTS = 5;
 export const PEEK_RETRY_MS = 200;
+export const KEEP_SETTLE_POLL_MS = 100;
 
 export interface ColumnViewer {
 	readonly terminal: string;
@@ -120,10 +121,20 @@ export class ViewerColumn {
 			if (!(await this.focusAnchor(anchor))) return;
 			const pane = await this.keep(v, place, anchor);
 			if (pane === undefined) return;
+			await this.awaitPane(pane);
 			v.pane = pane;
 			this.placed.push(v);
 		} finally {
 			if (remembered !== undefined) await this.focusPane(remembered);
+		}
+	}
+
+	/** Waits until Herdr lists `pane` in the tab: keep applies asynchronously and moves focus when it does. Gives up after PEEK_ATTEMPTS * PEEK_RETRY_MS. */
+	private async awaitPane(pane: string): Promise<void> {
+		const polls = (PEEK_ATTEMPTS * PEEK_RETRY_MS) / KEEP_SETTLE_POLL_MS;
+		for (let i = 0; i < polls; i++) {
+			if ((await this.livePanes())?.has(pane)) return;
+			await this.sleep(KEEP_SETTLE_POLL_MS);
 		}
 	}
 

@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { type ColumnViewer, MAX_COLUMN, PEEK_ATTEMPTS, PEEK_RETRY_MS, ViewerColumn } from "#src/herdr/column";
+import {
+	type ColumnViewer,
+	KEEP_SETTLE_POLL_MS,
+	MAX_COLUMN,
+	PEEK_ATTEMPTS,
+	PEEK_RETRY_MS,
+	ViewerColumn,
+} from "#src/herdr/column";
 import { FakeHerdrApp } from "./fake-herdr-app";
 
 const CTX = { terminalId: "t3s", spaceId: "sp1", tabId: "tb1", parentPaneId: "p1" };
@@ -174,6 +181,29 @@ describe("ViewerColumn keep retries", () => {
 		await column.place(viewer(10));
 		expect(doCalls(app).filter((c) => c.includes("terminal.keep"))).toHaveLength(1);
 		expect(sleeps).toEqual([]);
+	});
+});
+
+describe("ViewerColumn focus after keep", () => {
+	it("restores focus after Herdr applies the keep", async () => {
+		const { app, column, sleeps } = setup();
+		app.keepSettleReads = 2;
+		const v = viewer(10);
+		await column.place(v);
+		expect(v.pane).toBe("p10");
+		expect(sleeps).toContain(KEEP_SETTLE_POLL_MS);
+		expect(app.focused).toBe("p1");
+		expect(doCalls(app).at(-1)).toBe("do pane.focus --pane p1");
+	});
+
+	it("restores focus even when the kept pane never appears", async () => {
+		const { app, column, sleeps } = setup();
+		app.keepSettleReads = 99;
+		const v = viewer(10);
+		await column.place(v);
+		expect(column.isPlaced(v)).toBe(true);
+		expect(sleeps.filter((ms) => ms === KEEP_SETTLE_POLL_MS)).toHaveLength((PEEK_ATTEMPTS * PEEK_RETRY_MS) / KEEP_SETTLE_POLL_MS);
+		expect(app.focused).toBe("p1");
 	});
 });
 

@@ -18,15 +18,19 @@ export class FakeHerdrApp {
 	keepFails = false;
 	/** Number of `terminal.keep` calls that answer "no running terminal" (exit 1) before one succeeds. */
 	keepUnknownTimes = 0;
+	/** `ls` reads after a successful keep before the new pane appears and takes focus; 0 applies at once. */
+	keepSettleReads = 0;
+	private pendingKeeps: { pane: FakePane; reads: number }[] = [];
 	parkFails = false;
 	/** Number of `terminal.peek` calls that answer with an error before one succeeds. */
 	peekErrors = 0;
 
 	constructor() {
 		this.cli.reply(["status"], () => ok({ space: "sp1", tab: "tb1", focused_pane: this.focused }));
-		this.cli.reply(["ls"], () =>
-			ok({ spaces: [{ id: "sp1", tabs: [{ id: "tb1", terminals: this.panes.map((p) => ({ ...p })) }] }] }),
-		);
+		this.cli.reply(["ls"], () => {
+			this.applyPendingKeeps();
+			return ok({ spaces: [{ id: "sp1", tabs: [{ id: "tb1", terminals: this.panes.map((p) => ({ ...p })) }] }] });
+		});
 		this.cli.reply(["do", "pane.focus"], (args) => {
 			this.focused = args[3] ?? this.focused;
 			return ok({ ok: true });
@@ -53,9 +57,25 @@ export class FakeHerdrApp {
 			return { code: 1, stdout: JSON.stringify({ error: `no running terminal "${terminal}"` }) };
 		}
 		const pane = terminal.replace(/^t/, "p");
-		this.panes.push({ terminal, pane });
-		this.focused = pane;
+		if (this.keepSettleReads > 0) {
+			this.pendingKeeps.push({ pane: { terminal, pane }, reads: this.keepSettleReads });
+		} else {
+			this.show({ terminal, pane });
+		}
 		return ok({ pending: true, terminal, pane, tab: "tb1" });
+	}
+
+	private show(p: FakePane): void {
+		this.panes.push(p);
+		this.focused = p.pane;
+	}
+
+	private applyPendingKeeps(): void {
+		for (const pending of this.pendingKeeps) {
+			pending.reads--;
+			if (pending.reads === 0) this.show(pending.pane);
+		}
+		this.pendingKeeps = this.pendingKeeps.filter((p) => p.reads > 0);
 	}
 
 	private park(terminal: string): HerdrResult {
