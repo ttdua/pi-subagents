@@ -21,9 +21,9 @@ Blocked by: 1
 
 Blocked by: none
 
-- [ ] 3.1 `TranscriptPaneOptions.layout` (`docked` default | `fill`) and `status?: () => string | undefined` in `src/ui/session-navigator.ts`; `TranscriptPane.resync()` and `TranscriptContent.resync()` in `src/ui/transcript-content.ts` (design D3, D4)
-- [ ] 3.2 `fill`: exactly `rows` lines (header, `rows - 2` transcript rows, footer; footer only at 1 row); Esc/`q` ignored; footer hint without `Esc close`; footer left label `<status> · <N> lines · <pct>` with `<status>` as narrow fallback
-- [ ] 3.3 Tests in `test/ui/session-navigator.test.ts` and `test/ui/transcript-content.test.ts`: fill height for 1–4 and 40 rows, close keys ignored, footer shows status, line count, percentage and scroll hints and no close hint, docked unchanged, resync drops a stale in-flight message
+- [x] 3.1 `TranscriptPaneOptions.layout` (`docked` default | `fill`) and `status?: () => string | undefined` in `src/ui/session-navigator.ts`; `TranscriptPane.resync()` and `TranscriptContent.resync()` in `src/ui/transcript-content.ts` (design D3, D4)
+- [x] 3.2 `fill`: exactly `rows` lines (header, `rows - 2` transcript rows, footer; footer only at 1 row); Esc/`q` ignored; footer hint without `Esc close`; footer left label `<status> · <N> lines · <pct>` with `<status>` as narrow fallback
+- [x] 3.3 Tests in `test/ui/session-navigator.test.ts` and `test/ui/transcript-content.test.ts`: fill height for 1–4 and 40 rows, close keys ignored, footer shows status, line count, percentage and scroll hints and no close hint, docked unchanged, resync drops a stale in-flight message
 
 ## 4. Viewer transcript source
 
