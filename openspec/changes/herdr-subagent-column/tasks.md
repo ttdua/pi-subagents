@@ -2,8 +2,8 @@
 
 Blocked by: none
 
-- [ ] 1.1 Add `src/herdr/cli.ts` (the `HerdrCli` port, its `pi.exec`-backed implementation with a 2 s timeout, and `HerdrQueue`) and `src/herdr/json.ts` (defensive JSON narrowing helpers) per design D1
-- [ ] 1.2 Add `src/herdr/detect.ts`: `detectHerdr({ mode, env, cli })` returning `HerdrContext` or `undefined` per design D2; tests with a scripted fake `HerdrCli` for every "Herdr detection" and "Inactive column changes nothing" scenario
+- [x] 1.1 Add `src/herdr/cli.ts` (the `HerdrCli` port, its `pi.exec`-backed implementation with a 2 s timeout, and `HerdrQueue`) and `src/herdr/json.ts` (defensive JSON narrowing helpers) per design D1
+- [x] 1.2 Add `src/herdr/detect.ts`: `detectHerdr({ mode, env, cli })` returning `HerdrContext` or `undefined` per design D2; tests with a scripted fake `HerdrCli` for every "Herdr detection" and "Inactive column changes nothing" scenario
 
 ## 2. Viewer program
 
