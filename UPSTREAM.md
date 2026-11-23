@@ -257,3 +257,14 @@ Outside the table below, the fork also changes repository files that upstream ke
 | `src/herdr/column.ts` | add | `ViewerColumn`: viewer placement in a right-hand column with waiting FIFO, via `herdr-app`. |
 | `test/herdr/column.test.ts` | add | Tests for column placement, focus restore, overflow, park and peek retry. |
 | `test/herdr/fake-herdr-app.ts` | add | `FakeHerdrCli` preset following a mutable pane model of `herdr-app`. |
+| `src/herdr/runtime.ts` | add | `viewerRuntime`: picks the program that runs `viewer.ts` directly (Bun, Node ≥ 22.18, else `node`). |
+| `src/herdr/status-files.ts` | add | `ViewerStatusFiles`: atomic per-viewer running/done status files under the tmp dir. |
+| `src/herdr/viewer-process.ts` | add | `ViewerProcesses`: start, liveness and end of viewer terminals through `hc`. |
+| `src/herdr/viewer-registry.ts` | add | `ViewerRegistry`: known viewers by key and by transcript path. |
+| `src/herdr/output-file-poller.ts` | add | `OutputFilePoller`: reports when a record first has an `outputFile`. |
+| `src/herdr/herdr-observer.ts` | add | `HerdrViewers` lifecycle observer (sole queue owner) and `HerdrViewersSlot`. |
+| `test/herdr/runtime.test.ts` | add | Tests for viewer runtime selection across Bun, Node versions and single binaries. |
+| `test/herdr/status-files.test.ts` | add | Tests for atomic status writes and status dir removal. |
+| `test/herdr/viewer-process.test.ts` | add | Tests for `hc run` argv, name sanitizing, retry, liveness and end order. |
+| `test/herdr/output-file-poller.test.ts` | add | Tests for output file polling, unwatch and timer lifetime. |
+| `test/herdr/herdr-observer.test.ts` | add | Scenario tests for viewer lifecycle, sessions `open`, ordering, failures and dispose. |
