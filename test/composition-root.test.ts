@@ -483,3 +483,81 @@ describe("composition root: package-agent trust wiring", () => {
   });
 
 });
+
+describe("composition root: Herdr viewers", () => {
+  const TERMINAL = "t3s";
+  const hcGet = JSON.stringify({ address: TERMINAL, labels: { "herdr.space": "sp1", "herdr.tab": "tb1" }, state: "live" });
+  const appLs = JSON.stringify({
+    spaces: [
+      {
+        id: "sp1",
+        name: "m",
+        tabs: [{ id: "tb1", name: "1", terminals: [{ terminal: TERMINAL, pane: "p1", status: "working", app: "pi", name: null, sub_agents: [] }] }],
+      },
+    ],
+  });
+  const tuiCtx = () => ({ ...makeSessionStartCtx(makeParentRegistry().registry, makeRecordingUI(), true), mode: "tui" });
+  const commandsOf = (pi: any): string[] => vi.mocked(pi.exec).mock.calls.map((call: unknown[]) => String(call[0]));
+
+  /** An `exec` whose `hc get` reply the test releases by hand. */
+  function heldExec() {
+    let release: () => void = () => {};
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    const exec = vi.fn(async (cmd: string, args: string[]) => {
+      if (cmd === "hc" && args[0] === "get") {
+        await gate;
+        return { code: 0, stdout: hcGet, stderr: "", killed: false };
+      }
+      if (cmd === "herdr-app") return { code: 0, stdout: appLs, stderr: "", killed: false };
+      return { code: 1, stdout: "", stderr: "", killed: false };
+    });
+    return { exec, release };
+  }
+  const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("Outside Herdr: runs no hc or herdr-app command at session_start", async () => {
+    vi.stubEnv("HC_TERMINAL_ID", "");
+    const { pi, fire } = makePi();
+    subagentsExtension(pi);
+    await fire("session_start", {}, tuiCtx());
+    await settle();
+    expect(commandsOf(pi).filter((cmd) => cmd === "hc" || cmd === "herdr-app")).toEqual([]);
+    await fire("session_shutdown", {}, {});
+  });
+
+  it("Inside Herdr: detects in the background without blocking session_start", async () => {
+    vi.stubEnv("HC_TERMINAL_ID", TERMINAL);
+    const { pi, fire } = makePi();
+    const { exec, release } = heldExec();
+    pi.exec = exec;
+    subagentsExtension(pi);
+
+    await fire("session_start", {}, tuiCtx());
+
+    expect(exec).toHaveBeenCalledWith("hc", ["get", TERMINAL, "--json"], expect.anything());
+    release();
+    await settle();
+    await fire("session_shutdown", {}, {});
+  });
+
+  it("Shutdown before detection ends: no viewer is ever started", async () => {
+    vi.stubEnv("HC_TERMINAL_ID", TERMINAL);
+    const { pi, fire } = makePi();
+    const { exec, release } = heldExec();
+    pi.exec = exec;
+    subagentsExtension(pi);
+    await fire("session_start", {}, tuiCtx());
+
+    await fire("session_shutdown", {}, {});
+    release();
+    await settle();
+    await settle();
+
+    const runs = exec.mock.calls.filter(([cmd, args]) => cmd === "hc" && args[0] === "run");
+    expect(runs).toEqual([]);
+  });
+});

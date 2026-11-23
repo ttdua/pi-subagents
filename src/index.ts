@@ -27,6 +27,9 @@ import { loadCustomAgents } from "#src/config/custom-agents";
 import { DeprecationWarnings } from "#src/config/deprecations";
 import { seedProjectTrust, setProjectTrusted } from "#src/config/package-agents";
 import { InterruptHandler, SessionLifecycleHandler, WidgetEventsHandler } from "#src/handlers/index";
+import { activateHerdrViewers, HerdrActivation } from "#src/herdr/activate";
+import { createExecHerdrCli } from "#src/herdr/cli";
+import { HerdrViewersSlot } from "#src/herdr/herdr-observer";
 import { createChildLifecyclePublisher } from "#src/lifecycle/child-lifecycle";
 import { ConcurrencyLimiter } from "#src/lifecycle/concurrency-limiter";
 import { createSubagentSession, type SubagentSessionDeps } from "#src/lifecycle/create-subagent-session";
@@ -55,6 +58,7 @@ import { AgentTool } from "#src/tools/agent-tool";
 import { GetResultTool } from "#src/tools/get-result-tool";
 import { SteerTool } from "#src/tools/steer-tool";
 import { AgentWidget } from "#src/ui/agent-widget";
+import { getDisplayName } from "#src/ui/display";
 import { FleetList, type FleetUI } from "#src/ui/fleet-list";
 import {
   createNotificationRenderer,
@@ -245,6 +249,22 @@ export default function (pi: ExtensionAPI) {
   observer.add(fleet);
   pi.events.on("subagents:settings_changed", () => fleet.update());
 
+  // Herdr viewers: a fourth lifecycle observer, inert until activation installs
+  // an instance in the slot (only inside Herdr, in TUI mode).
+  const herdrSlot = new HerdrViewersSlot();
+  observer.add(herdrSlot);
+  const herdrCli = createExecHerdrCli((cmd, args, opts) => pi.exec(cmd, args, opts));
+  const herdr = new HerdrActivation(herdrSlot, (cwd, mode) =>
+    activateHerdrViewers({
+      mode,
+      env: process.env,
+      cli: herdrCli,
+      cwd,
+      pid: process.pid,
+      titleOf: ({ type, description }) => `${getDisplayName(type, registry)} · ${description}`,
+    }),
+  );
+
   // Give the widget its UI context and its turn ticks. Pi fans an event out to
   // every handler an extension registers for it, so these take their own
   // registrations rather than sharing a lambda with an unrelated concern.
@@ -264,6 +284,8 @@ export default function (pi: ExtensionAPI) {
     // wider widget callback parameters do not unify with it structurally.
     fleet.setUICtx(ctx.ui as unknown as FleetUI);
   });
+  // Detection runs `hc`/`herdr-app`, so it is not awaited: session start stays fast.
+  pi.on("session_start", (_event, ctx) => herdr.start({ cwd: ctx.cwd, mode: ctx.mode }));
   pi.on("session_before_switch", () => lifecycle.handleSessionBeforeSwitch());
   pi.on("session_shutdown", () => lifecycle.handleSessionShutdown());
   // Registered after the lifecycle handler on purpose. Pi awaits an extension's
@@ -273,6 +295,8 @@ export default function (pi: ExtensionAPI) {
   pi.on("session_shutdown", () => widgetEvents.handleSessionShutdown());
   // Same ordering reason for the fleet list.
   pi.on("session_shutdown", () => fleet.dispose());
+  // After the lifecycle handler: children are aborted before their viewers end.
+  pi.on("session_shutdown", () => herdr.stop());
 
   // Abort all subagents when the parent agent loop is interrupted (ESC), unless
   // the user has turned that policy off. The predicate is read at abort time.
@@ -317,6 +341,7 @@ export default function (pi: ExtensionAPI) {
         cwd: ctx.cwd,
         readFile: (path) => readFileSync(path, "utf8"),
         sessionEntries: ctx.sessionManager.getEntries(),
+        herdr: herdrSlot.get(),
       });
     },
   });
