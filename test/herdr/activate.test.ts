@@ -22,6 +22,7 @@ function insideHerdr(): FakeHerdrCli {
 }
 
 const titleOf = () => "title";
+const flush = () => new Promise((r) => setTimeout(r, 0));
 
 describe("activateHerdrViewers", () => {
 	it("is undefined without HC_TERMINAL_ID", async () => {
@@ -52,8 +53,7 @@ describe("HerdrActivation", () => {
 		const viewers = fakeViewers();
 		const activation = new HerdrActivation(slot, async () => viewers);
 		activation.start({ cwd: "/x", mode: "tui" });
-		await Promise.resolve();
-		await Promise.resolve();
+		await flush();
 		expect(slot.get()).toBe(viewers);
 	});
 
@@ -65,8 +65,7 @@ describe("HerdrActivation", () => {
 		activation.start({ cwd: "/x", mode: "tui" });
 		await activation.stop();
 		resolve(viewers);
-		await Promise.resolve();
-		await Promise.resolve();
+		await flush();
 		expect(slot.get()).toBeUndefined();
 		expect(viewers.dispose).toHaveBeenCalledTimes(1);
 	});
@@ -87,10 +86,26 @@ describe("HerdrActivation", () => {
 		const results = [first, second];
 		const activation = new HerdrActivation(slot, async () => results.shift());
 		activation.start({ cwd: "/x", mode: "tui" });
-		await new Promise((r) => setTimeout(r, 0));
+		await flush();
 		activation.start({ cwd: "/x", mode: "tui" });
-		await new Promise((r) => setTimeout(r, 0));
+		await flush();
 		expect(slot.get()).toBe(second);
 		expect(first.dispose).toHaveBeenCalledTimes(1);
+	});
+
+	it("survives an activation failure and installs nothing", async () => {
+		const slot = new HerdrViewersSlot();
+		const activation = new HerdrActivation(slot, async () => {
+			throw new Error("boom");
+		});
+		activation.start({ cwd: "/x", mode: "tui" });
+		await flush();
+		expect(slot.get()).toBeUndefined();
+	});
+
+	it("stop swallows a rejecting dispose", async () => {
+		const slot = new HerdrViewersSlot();
+		slot.set({ dispose: vi.fn(async () => Promise.reject(new Error("x"))) } as unknown as HerdrViewers);
+		await expect(new HerdrActivation(slot, async () => undefined).stop()).resolves.toBeUndefined();
 	});
 });

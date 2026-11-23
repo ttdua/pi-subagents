@@ -71,15 +71,18 @@ export class HerdrActivation {
 
 	start(ctx: { cwd: string; mode?: string }): void {
 		const generation = ++this.generation;
-		this.activate(ctx.cwd, ctx.mode).then(
-			(viewers) => this.install(generation, viewers),
-			(err) => debugLog("herdr activation failed", err),
-		);
+		this.activate(ctx.cwd, ctx.mode)
+			.then((viewers) => this.install(generation, viewers))
+			.catch((err) => debugLog("herdr activation failed", err));
 	}
 
 	async stop(): Promise<void> {
 		this.generation++;
-		await this.release();
+		try {
+			await this.release();
+		} catch (err) {
+			debugLog("herdr dispose failed", err);
+		}
 	}
 
 	private async install(generation: number, viewers: HerdrViewers | undefined): Promise<void> {

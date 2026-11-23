@@ -10,6 +10,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { HerdrViewers } from "#src/herdr/herdr-observer";
 
 const sdk = vi.hoisted(() => {
   interface Recorded {
@@ -544,8 +545,9 @@ describe("composition root: Herdr viewers", () => {
     await fire("session_shutdown", {}, {});
   });
 
-  it("Shutdown before detection ends: no viewer is ever started", async () => {
+  it("Shutdown before detection ends: the late instance is disposed and no viewer starts", async () => {
     vi.stubEnv("HC_TERMINAL_ID", TERMINAL);
+    const dispose = vi.spyOn(HerdrViewers.prototype, "dispose");
     const { pi, fire } = makePi();
     const { exec, release } = heldExec();
     pi.exec = exec;
@@ -556,8 +558,8 @@ describe("composition root: Herdr viewers", () => {
     release();
     await settle();
     await settle();
-
-    const runs = exec.mock.calls.filter(([cmd, args]) => cmd === "hc" && args[0] === "run");
-    expect(runs).toEqual([]);
+    expect(dispose).toHaveBeenCalledTimes(1);
+    expect(exec.mock.calls.filter(([cmd, args]) => cmd === "hc" && args[0] === "run")).toEqual([]);
+    dispose.mockRestore();
   });
 });
