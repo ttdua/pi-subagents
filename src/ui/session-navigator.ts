@@ -155,6 +155,10 @@ export interface TranscriptPaneOptions {
   done: (result: undefined) => void;
   cwd: string;
   markdownTheme: MarkdownTheme;
+  /** `docked` (default) sizes to the transcript with a close key; `fill` takes every terminal row and never closes itself. */
+  layout?: "docked" | "fill";
+  /** A short state label for the footer, read on every render. */
+  status?: () => string | undefined;
 }
 
 /**
@@ -253,8 +257,23 @@ export class TranscriptPane implements Component {
   private readonly content: TranscriptContent;
   /** Width the host last rendered at; input must use the same layout. */
   private renderedWidth: number | undefined;
+  private readonly layout: "docked" | "fill";
+  private readonly status: () => string | undefined;
 
-  constructor({ tui, theme, keys, source, heading, done, cwd, markdownTheme }: TranscriptPaneOptions) {
+  constructor({
+    tui,
+    theme,
+    keys,
+    source,
+    heading,
+    done,
+    cwd,
+    markdownTheme,
+    layout = "docked",
+    status = () => undefined,
+  }: TranscriptPaneOptions) {
+    this.layout = layout;
+    this.status = status;
     this.tui = tui;
     this.theme = theme;
     this.keys = keys;
@@ -270,7 +289,7 @@ export class TranscriptPane implements Component {
   }
 
   handleInput(data: string): void {
-    if (matchesKey(data, "escape") || matchesKey(data, "q")) {
+    if (this.layout === "docked" && (matchesKey(data, "escape") || matchesKey(data, "q"))) {
       this.closed = true;
       this.done(undefined);
       return;
@@ -305,13 +324,22 @@ export class TranscriptPane implements Component {
     const th = this.theme;
     this.renderedWidth = width;
     const lines: string[] = [];
+    const rows = this.tui.terminal.rows;
 
     // Rows span at most the width the host supplied: pi-tui rejects a wider one.
     const fitToWidth = (content: string): string => truncateToWidth(content, width);
     const { model, thinkingLevel } = this.source.sessionModel();
     const paint = th.getThinkingBorderColor(thinkingLevel ?? "off");
 
-    lines.push(labeledRule(width, paint, this.headerLabels(model, thinkingLevel)));
+    if (this.layout === "docked" || rows >= 2) {
+      lines.push(labeledRule(width, paint, this.headerLabels(model, thinkingLevel)));
+    }
+    if (this.layout === "fill" && rows < 2) {
+      const { totalLines, viewportHeight, maxScroll } = this.scrollBounds(width);
+      if (this.autoScroll) this.scrollOffset = maxScroll;
+      lines.push(this.footerRule(width, paint, totalLines, viewportHeight, Math.min(this.scrollOffset, maxScroll)));
+      return lines;
+    }
 
     const { totalLines, viewportHeight, maxScroll } = this.scrollBounds(width);
     if (this.autoScroll) this.scrollOffset = maxScroll;
@@ -319,13 +347,7 @@ export class TranscriptPane implements Component {
     const visible = this.content.slice(width, visibleStart, viewportHeight);
     for (let i = 0; i < viewportHeight; i++) lines.push(fitToWidth(visible[i] ?? ""));
 
-    const scrollPct =
-      totalLines <= viewportHeight
-        ? "100%"
-        : `${Math.round(((visibleStart + viewportHeight) / totalLines) * 100)}%`;
-    const position = th.fg("dim", `${totalLines} lines · ${scrollPct}`);
-    const hints = th.fg("dim", this.footerHint());
-    lines.push(labeledRule(width, paint, [position], [hints]));
+    lines.push(this.footerRule(width, paint, totalLines, viewportHeight, visibleStart));
 
     return lines;
   }
@@ -333,6 +355,12 @@ export class TranscriptPane implements Component {
   // fallow-ignore-next-line unused-class-member
   invalidate(): void {
     this.content.invalidate();
+  }
+
+  /** Rebuild the transcript from the source's current history, dropping any stale in-flight message. */
+  resync(): void {
+    this.content.resync();
+    this.tui.requestRender();
   }
 
   dispose(): void {
@@ -345,6 +373,30 @@ export class TranscriptPane implements Component {
 
   // ---- Private ----
 
+  /** The footer rule: status and scroll position on the left, key hints on the right. */
+  private footerRule(
+    width: number,
+    paint: (text: string) => string,
+    totalLines: number,
+    viewportHeight: number,
+    visibleStart: number,
+  ): string {
+    const th = this.theme;
+    const scrollPct =
+      totalLines <= viewportHeight
+        ? "100%"
+        : `${Math.round(((visibleStart + viewportHeight) / totalLines) * 100)}%`;
+    const position = `${totalLines} lines · ${scrollPct}`;
+    const status = this.status();
+    const left = status ? [`${status} · ${position}`, status] : [position];
+    return labeledRule(
+      width,
+      paint,
+      left.map((label) => th.fg("dim", label)),
+      [th.fg("dim", this.footerHint())],
+    );
+  }
+
   /**
    * The key hints the footer rule carries on its right, naming the keys the
    * operator actually bound: the first key of each binding, and no segment
@@ -353,7 +405,7 @@ export class TranscriptPane implements Component {
   private footerHint(): string {
     const page = this.keyPair("tui.altScreen.pageUp", "tui.altScreen.pageDown");
     const ends = this.keyPair("tui.altScreen.top", "tui.altScreen.bottom");
-    return ["↑↓ scroll", page, ends, "Esc close"].filter((segment) => segment !== "").join(" · ");
+    return ["↑↓ scroll", page, ends, this.layout === "docked" ? "Esc close" : ""].filter((segment) => segment !== "").join(" · ");
   }
 
   /** `PageUp/PageDown` for a pair of bindings; the bound side alone when the other is unbound. */
@@ -419,6 +471,7 @@ export class TranscriptPane implements Component {
    * floored so a short one still reads as a pane.
    */
   private viewportHeight(totalLines: number): number {
+    if (this.layout === "fill") return Math.max(0, this.tui.terminal.rows - CHROME_LINES);
     const cap = Math.floor((this.tui.terminal.rows * VIEWPORT_HEIGHT_PCT) / 100) - CHROME_LINES;
     return Math.max(MIN_VIEWPORT, Math.min(totalLines, cap));
   }

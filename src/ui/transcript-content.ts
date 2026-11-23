@@ -123,6 +123,12 @@ export class TranscriptContent {
     this.consumeSettled();
   }
 
+  /** Discard all state, then consume the source's current history. */
+  resync(): void {
+    this.reset();
+    this.consumeSettled();
+  }
+
   /** Drop cached rendering held by the mounted components and by this object. */
   invalidate(): void {
     for (const block of this.blocks) {

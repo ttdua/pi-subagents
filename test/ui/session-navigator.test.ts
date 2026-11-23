@@ -56,6 +56,8 @@ function makePane(
     tui?: TUI;
     heading?: EntryHeading;
     keys?: PaneKeys;
+    layout?: "docked" | "fill";
+    status?: () => string | undefined;
   } = {},
 ) {
   return new TranscriptPane({
@@ -67,6 +69,8 @@ function makePane(
     done: opts.done ?? vi.fn(),
     cwd: "/test/cwd",
     markdownTheme: getMarkdownTheme(),
+    layout: opts.layout,
+    status: opts.status,
   });
 }
 
@@ -77,6 +81,52 @@ const rowsOf = (n: number) =>
   ] as unknown as SessionMessage[];
 
 const SONNET_HIGH: SessionModel = { model: { provider: "anthropic", id: "claude-sonnet-5" }, thinkingLevel: "high" };
+
+describe("fill layout", () => {
+  const fillPane = (rows: number, status: () => string | undefined = () => "running", done = vi.fn(), n = 100) =>
+    makePane({
+      tui: mockTui(rows, 80),
+      layout: "fill",
+      status,
+      done,
+      source: fakeSource({ getMessages: () => rowsOf(n) }),
+    });
+
+  it("fill layout fills the terminal", () => {
+    expect(fillPane(40).render(80)).toHaveLength(40);
+  });
+
+  it("fill layout fits short terminals", () => {
+    for (const rows of [1, 2, 3, 4]) {
+      const lines = fillPane(rows).render(80);
+      expect(lines).toHaveLength(rows);
+      expect(stripAnsi(lines.at(-1) ?? "")).toContain("running");
+    }
+  });
+
+  it("fill layout ignores close keys", () => {
+    const done = vi.fn();
+    const pane = fillPane(40, undefined, done);
+    pane.render(80);
+    pane.handleInput("\x1b");
+    pane.handleInput("q");
+    expect(done).not.toHaveBeenCalled();
+  });
+
+  it("fill footer shows status, position and hints", () => {
+    // rowsOf(98) renders as 100 transcript lines.
+    const footer = stripAnsi(fillPane(40, undefined, undefined, 98).render(120).at(-1) ?? "");
+    expect(footer).toContain("running");
+    expect(footer).toContain("100 lines");
+    expect(footer).toContain("%");
+    expect(footer).toContain("↑↓ scroll");
+    expect(footer).not.toContain("Esc close");
+  });
+
+  it("fill footer falls back to the status when narrow", () => {
+    expect(stripAnsi(fillPane(40).render(20).at(-1) ?? "")).toContain("running");
+  });
+});
 
 describe("TranscriptPane", () => {
   it("renders the transcript content", () => {
