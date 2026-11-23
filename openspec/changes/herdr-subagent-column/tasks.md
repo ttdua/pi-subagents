@@ -16,8 +16,8 @@ Blocked by: none
 
 Blocked by: 1
 
-- [ ] 3.1 Add `src/herdr/column.ts`: `ViewerColumn` (plain async methods, no queue) with placement, waiting FIFO, hide with refill, focus and peek per design D4 and D7
-- [ ] 3.2 Tests covering the "Column placement", "Placement keeps focus and order" and "Column overflow" scenarios, pane loss, keep failure, park failure and peek retries
+- [x] 3.1 Add `src/herdr/column.ts`: `ViewerColumn` (plain async methods, no queue) with placement, waiting FIFO, hide with refill, focus and peek per design D4 and D7
+- [x] 3.2 Tests covering the "Column placement", "Placement keeps focus and order" and "Column overflow" scenarios, pane loss, keep failure, park failure and peek retries
 
 ## 4. Viewer lifecycle observer
 
