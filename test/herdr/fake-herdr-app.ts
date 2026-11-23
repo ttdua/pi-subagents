@@ -16,6 +16,8 @@ export class FakeHerdrApp {
 	panes: FakePane[] = [{ terminal: "t3s", pane: "p1" }];
 	focused = "p1";
 	keepFails = false;
+	/** `status` answers with a failure. */
+	statusFails = false;
 	/** Number of `terminal.keep` calls that answer "no running terminal" (exit 1) before one succeeds. */
 	keepUnknownTimes = 0;
 	/** `ls` reads after a successful keep before the new pane appears and takes focus; 0 applies at once. */
@@ -26,7 +28,7 @@ export class FakeHerdrApp {
 	peekErrors = 0;
 
 	constructor() {
-		this.cli.reply(["status"], () => ok({ space: "sp1", tab: "tb1", focused_pane: this.focused }));
+		this.cli.reply(["status"], () => (this.statusFails ? { code: 1, stdout: "" } : ok({ space: "sp1", tab: "tb1", focused_pane: this.focused })));
 		this.cli.reply(["ls"], () => {
 			this.applyPendingKeeps();
 			return ok({ spaces: [{ id: "sp1", tabs: [{ id: "tb1", terminals: this.panes.map((p) => ({ ...p })) }] }] });

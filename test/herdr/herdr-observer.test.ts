@@ -359,11 +359,12 @@ describe("HerdrViewers.open", () => {
 		expect(await h.viewers.open(snapshotEntry(file))).toBe(true);
 		const args = h.runs()[0]?.args ?? [];
 		expect(args[args.indexOf("--title") + 1]).toBe("Explore · old task");
-		expect(args[args.indexOf("--status") + 1]).toBe(join(h.root, "99", `${key}.json`));
+		expect(args[args.indexOf("--status") + 1]).toMatch(new RegExp(`^${h.root}/99-[A-Za-z0-9]{6}/${key}\\.json$`));
 		expect(args[args.indexOf("--name") + 1]).toBe(`explore-${key.slice(0, 6)}`);
 		expect(h.doCalls("terminal.keep")).toEqual([]);
 		expect(h.doCalls("terminal.peek")).toEqual(["herdr-app do terminal.peek --terminal t10"]);
 		expect(h.registry.byKey(key)?.terminal).toBe("t10");
+		expect(h.status(key)).toEqual({ state: "done" });
 	});
 
 	it("starts a finished live record's viewer with its done status", async () => {

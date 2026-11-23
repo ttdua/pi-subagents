@@ -47,7 +47,8 @@ interface ViewerSource {
 	agentType: string | undefined;
 	title: string;
 	outputFile: string;
-	status: SubagentStatus;
+	/** Absent for a snapshot whose run status is not known. */
+	status: SubagentStatus | undefined;
 }
 
 const unrefSleep: Sleep = (ms) =>
@@ -55,7 +56,8 @@ const unrefSleep: Sleep = (ms) =>
 		setTimeout(resolve, ms).unref?.();
 	});
 
-function statusFor(status: SubagentStatus): ViewerStatus {
+function statusFor(status: SubagentStatus | undefined): ViewerStatus {
+	if (status === undefined) return { state: "done" };
 	if (status === "queued" || status === "running") return { state: "running" };
 	return { state: "done", status };
 }
@@ -246,7 +248,7 @@ export class HerdrViewers implements SubagentManagerObserver {
 			agentType: entry.heading.name,
 			title: `${entry.heading.name} · ${entry.heading.description}`,
 			outputFile,
-			status: "completed",
+			status: undefined,
 		};
 	}
 }

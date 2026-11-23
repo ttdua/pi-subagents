@@ -160,6 +160,18 @@ describe("viewer program", () => {
 	);
 
 	it(
+		"prints a bare done when the status carries no run status",
+		async () => {
+			const v = startViewer();
+			await v.waitForOutput("Explore · test", 1000);
+			writeFileSync(status, JSON.stringify({ state: "done" }));
+			await v.waitForOutput("done", 1000);
+			expect(v.output()).not.toContain("done (");
+		},
+		TEST_TIMEOUT_MS,
+	);
+
+	it(
 		"prints status changes once and ignores half-written status",
 		async () => {
 			const v = startViewer();

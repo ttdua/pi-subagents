@@ -207,6 +207,16 @@ describe("ViewerColumn focus after keep", () => {
 	});
 });
 
+describe("ViewerColumn focus fallback", () => {
+	it("restores focus to the parent pane when status cannot be read", async () => {
+		const { app, column } = setup();
+		app.statusFails = true;
+		await column.place(viewer(10));
+		expect(app.focused).toBe("p1");
+		expect(doCalls(app).at(-1)).toBe("do pane.focus --pane p1");
+	});
+});
+
 describe("ViewerColumn focus and peek", () => {
 	it("focuses a placed viewer's pane", async () => {
 		const { app, column } = setup();

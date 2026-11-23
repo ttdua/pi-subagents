@@ -113,7 +113,7 @@ export class ViewerColumn {
 
 	/** Keeps `v` next to the column anchor, then puts focus back where the user had it. */
 	private async placeNow(v: ColumnViewer): Promise<void> {
-		const remembered = await this.readFocus();
+		const remembered = (await this.readFocus()) ?? this.ctx.parentPaneId;
 		const last = this.placed[this.placed.length - 1];
 		const anchor = last?.pane ?? this.ctx.parentPaneId;
 		const place = last === undefined ? "right" : "down";
@@ -151,7 +151,7 @@ export class ViewerColumn {
 			if (result.code === 0) return asString(asRecord(parseJson(result.stdout))?.pane);
 			const error = asString(asRecord(parseJson(result.stdout))?.error);
 			if (error === undefined || !error.includes("no running terminal") || attempt === PEEK_ATTEMPTS) {
-				debugLog(`herdr terminal.keep failed for ${v.terminal}`, result.code);
+				debugLog(`herdr terminal.keep failed for ${v.terminal}`, `code ${result.code}: ${error ?? "no error reply"}`);
 				return undefined;
 			}
 			await this.sleep(PEEK_RETRY_MS);

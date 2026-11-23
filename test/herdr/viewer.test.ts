@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseArgs, renderEntry, splitLines } from "#src/herdr/viewer";
+import { enableRawMode, parseArgs, renderEntry, sanitize, splitLines } from "#src/herdr/viewer";
 
 const ANSI = /\x1b\[[0-9;]*m/g;
 const plain = (lines: string[]) => lines.map((l) => l.replace(ANSI, ""));
@@ -89,5 +89,42 @@ describe("renderEntry", () => {
 		"text",
 	])("renders nothing for %j", (entry) => {
 		expect(renderEntry(entry)).toEqual([]);
+	});
+});
+
+describe("sanitize", () => {
+	it("removes escape, bell, CR, DEL and C1 controls but keeps tab and newline", () => {
+		expect(sanitize("a\x1b]52;c;ZGF0YQ\x07b\x1b[31mc\rd\x7fe\x85f\x9bg\th\ni")).toBe("a]52;c;ZGF0YQb[31mcdefg\th\ni");
+	});
+
+	it("is applied to every rendered string before the viewer's own styling", () => {
+		const out = renderEntry(message("toolResult", [{ type: "text", text: "x\x1b[2Jy\rdone (completed)" }]));
+		expect(out).toEqual(["\x1b[2mx[2Jydone (completed)\x1b[22m"]);
+		expect(renderEntry(message("user", "hi\x1b]0;t\x07"))).toEqual(["> hi]0;t"]);
+		expect(renderEntry(message("assistant", [{ type: "toolCall", id: "c", name: "r\x1b", arguments: { p: "\x1b[1m" } }]))[0]).not.toContain("\x1b");
+		expect(renderEntry({ type: "compaction", summary: "s\x1b[0m" })).toEqual(["\x1b[2m(compacted) s[0m\x1b[22m"]);
+	});
+});
+
+describe("enableRawMode", () => {
+	it("sets raw mode on a TTY", () => {
+		const calls: boolean[] = [];
+		enableRawMode({ isTTY: true, setRawMode: (b: boolean) => void calls.push(b) });
+		expect(calls).toEqual([true]);
+	});
+
+	it("swallows a setRawMode error", () => {
+		expect(() =>
+			enableRawMode({
+				isTTY: true,
+				setRawMode: () => {
+					throw new Error("EIO");
+				},
+			}),
+		).not.toThrow();
+	});
+
+	it("does nothing without a TTY", () => {
+		expect(() => enableRawMode({ isTTY: false, setRawMode: () => { throw new Error("no"); } })).not.toThrow();
 	});
 });

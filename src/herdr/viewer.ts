@@ -21,7 +21,12 @@ const COMPACTION_MAX_CHARS = 120;
 const FILE_POLL_MS = 300;
 const STATUS_POLL_MS = 500;
 const PARENT_CHECK_MS = 1000;
-const HC_TIMEOUT_MS = 2000;
+const HC_TIMEOUT_MS = 800;
+
+/** Drops control characters (except tab and newline) so untrusted transcript text cannot drive the terminal. */
+export function sanitize(text: string): string {
+	return text.replace(/[\x00-\x08\x0b-\x1f\x7f-\x9f]/g, "");
+}
 
 const dim = (text: string): string => `\x1b[2m${text}\x1b[22m`;
 
@@ -77,12 +82,12 @@ function truncateLines(lines: string[], max: number): string[] {
 }
 
 function contentText(content: unknown): string {
-	if (typeof content === "string") return content;
+	if (typeof content === "string") return sanitize(content);
 	if (!Array.isArray(content)) return "";
 	return content
 		.map((block) => {
 			const b = asRecord(block);
-			return b?.type === "text" ? (asString(b.text) ?? "") : "";
+			return b?.type === "text" ? sanitize(asString(b.text) ?? "") : "";
 		})
 		.filter((t) => t !== "")
 		.join("\n");
@@ -96,17 +101,17 @@ function renderUser(content: unknown): string[] {
 }
 
 function renderToolCall(block: Record_): string[] {
-	const name = asString(block.name) ?? "?";
-	const args = JSON.stringify(block.arguments ?? {}) ?? "";
+	const name = sanitize(asString(block.name) ?? "?");
+	const args = sanitize(JSON.stringify(block.arguments ?? {}) ?? "");
 	const shown = args.length > TOOL_ARGS_MAX_CHARS ? `${args.slice(0, TOOL_ARGS_MAX_CHARS)}…` : args;
 	return [`-> ${name} ${shown}`];
 }
 
 function renderAssistantBlock(block: unknown): string[] {
 	const b = asRecord(block);
-	if (b?.type === "text") return textLines(asString(b.text) ?? "");
+	if (b?.type === "text") return textLines(sanitize(asString(b.text) ?? ""));
 	if (b?.type === "thinking") {
-		const lines = textLines(asString(b.thinking) ?? "").slice(0, THINKING_MAX_LINES);
+		const lines = textLines(sanitize(asString(b.thinking) ?? "")).slice(0, THINKING_MAX_LINES);
 		return lines.map(dim);
 	}
 	if (b?.type === "toolCall") return renderToolCall(b);
@@ -114,7 +119,7 @@ function renderAssistantBlock(block: unknown): string[] {
 }
 
 function renderAssistant(content: unknown): string[] {
-	if (typeof content === "string") return textLines(content);
+	if (typeof content === "string") return textLines(sanitize(content));
 	if (!Array.isArray(content)) return [];
 	return content.flatMap(renderAssistantBlock);
 }
@@ -139,7 +144,7 @@ function renderMessage(message: Record_ | undefined): string[] {
 }
 
 function renderCompaction(entry: Record_): string[] {
-	const summary = (asString(entry.summary) ?? "").replace(/\s+/g, " ").trim();
+	const summary = sanitize(asString(entry.summary) ?? "").replace(/\s+/g, " ").trim();
 	const shown = summary.length > COMPACTION_MAX_CHARS ? `${summary.slice(0, COMPACTION_MAX_CHARS)}…` : summary;
 	return [dim(`(compacted) ${shown}`.trimEnd())];
 }
@@ -226,7 +231,10 @@ function readStatusLabel(file: string): string | undefined {
 	}
 	const status = asRecord(parseLine(text));
 	if (status?.state === "running") return "running";
-	if (status?.state === "done") return `done (${asString(status.status) ?? "?"})`;
+	if (status?.state === "done") {
+		const finished = asString(status.status);
+		return finished === undefined ? "done" : `done (${sanitize(finished)})`;
+	}
 	return undefined;
 }
 
@@ -269,10 +277,20 @@ function watchParent(pid: number, parentTerminal: string | undefined): () => voi
 	};
 }
 
+/** Raw mode keeps keystrokes from echoing; a TTY error must not crash the viewer. */
+export function enableRawMode(stdin: { isTTY?: boolean; setRawMode?: (mode: boolean) => unknown }): void {
+	if (!stdin.isTTY) return;
+	try {
+		stdin.setRawMode?.(true);
+	} catch {
+		// Keep running without raw mode.
+	}
+}
+
 /** Read-only: every key typed into the viewer is swallowed. */
 function discardInput(): void {
 	const stdin = process.stdin;
-	if (stdin.isTTY) stdin.setRawMode(true);
+	enableRawMode(stdin);
 	stdin.on("data", () => {});
 	stdin.on("error", () => {});
 	stdin.resume();
@@ -285,7 +303,7 @@ function every(ms: number, tick: () => void): void {
 
 function main(argv: string[]): void {
 	const args = parseArgs(argv);
-	printLines([`\x1b[1m${args.title}\x1b[22m`]);
+	printLines([`\x1b[1m${sanitize(args.title)}\x1b[22m`]);
 	discardInput();
 	every(FILE_POLL_MS, followTranscript(args.file));
 	every(STATUS_POLL_MS, watchStatus(args.status));

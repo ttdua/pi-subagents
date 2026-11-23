@@ -3,27 +3,36 @@
  * child runs or finished. Written atomically (temp file + rename).
  */
 
-import { mkdirSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { SubagentStatus } from "#src/lifecycle/subagent-state";
 
 export type FinishedStatus = Exclude<SubagentStatus, "queued" | "running">;
 
-export type ViewerStatus = { state: "running" } | { state: "done"; status: FinishedStatus };
+export type ViewerStatus = { state: "running" } | { state: "done"; status?: FinishedStatus };
 
 export class ViewerStatusFiles {
-	private readonly dir: string;
+	private dir: string | undefined;
 
-	constructor(root: string, pid: number) {
-		this.dir = join(root, String(pid));
+	constructor(
+		private readonly root: string,
+		private readonly pid: number,
+	) {}
+
+	/** Per-process directory with an unpredictable name, created on first use. */
+	private ensureDir(): string {
+		if (this.dir === undefined) {
+			mkdirSync(this.root, { recursive: true, mode: 0o700 });
+			this.dir = mkdtempSync(join(this.root, `${this.pid}-`));
+		}
+		return this.dir;
 	}
 
 	pathFor(key: string): string {
-		return join(this.dir, `${key}.json`);
+		return join(this.ensureDir(), `${key}.json`);
 	}
 
 	write(key: string, s: ViewerStatus): void {
-		mkdirSync(this.dir, { recursive: true });
 		const target = this.pathFor(key);
 		const temp = `${target}.tmp`;
 		writeFileSync(temp, JSON.stringify(s));
@@ -31,6 +40,7 @@ export class ViewerStatusFiles {
 	}
 
 	removeAll(): void {
-		rmSync(this.dir, { recursive: true, force: true });
+		if (this.dir !== undefined) rmSync(this.dir, { recursive: true, force: true });
+		this.dir = undefined;
 	}
 }
