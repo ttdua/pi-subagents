@@ -117,8 +117,8 @@ export class ViewerColumn {
 		const anchor = last?.pane ?? this.ctx.parentPaneId;
 		const place = last === undefined ? "right" : "down";
 		try {
-			if (!(await this.focusPane(anchor))) return;
-			const pane = await this.keep(v, place);
+			if (!(await this.focusAnchor(anchor))) return;
+			const pane = await this.keep(v, place, anchor);
 			if (pane === undefined) return;
 			v.pane = pane;
 			this.placed.push(v);
@@ -127,13 +127,26 @@ export class ViewerColumn {
 		}
 	}
 
-	private async keep(v: ColumnViewer, place: "right" | "down"): Promise<string | undefined> {
-		const result = await this.cli.run("herdr-app", ["do", "terminal.keep", "--terminal", v.terminal, "--place", place]);
-		if (result.code !== 0) {
-			debugLog(`herdr terminal.keep failed for ${v.terminal}`, result.code);
-			return undefined;
+	private async focusAnchor(anchor: string): Promise<boolean> {
+		const focused = await this.focusPane(anchor);
+		if (!focused) debugLog("herdr pane.focus failed for anchor", anchor);
+		return focused;
+	}
+
+	/** Retries while Herdr has not seen the terminal yet; any other failure is final. */
+	private async keep(v: ColumnViewer, place: "right" | "down", anchor: string): Promise<string | undefined> {
+		for (let attempt = 1; attempt <= PEEK_ATTEMPTS; attempt++) {
+			const result = await this.cli.run("herdr-app", ["do", "terminal.keep", "--terminal", v.terminal, "--place", place]);
+			if (result.code === 0) return asString(asRecord(parseJson(result.stdout))?.pane);
+			const error = asString(asRecord(parseJson(result.stdout))?.error);
+			if (error === undefined || !error.includes("no running terminal") || attempt === PEEK_ATTEMPTS) {
+				debugLog(`herdr terminal.keep failed for ${v.terminal}`, result.code);
+				return undefined;
+			}
+			await this.sleep(PEEK_RETRY_MS);
+			await this.focusAnchor(anchor);
 		}
-		return asString(asRecord(parseJson(result.stdout))?.pane);
+		return undefined;
 	}
 
 	private async refill(): Promise<void> {

@@ -16,6 +16,8 @@ export class FakeHerdrApp {
 	panes: FakePane[] = [{ terminal: "t3s", pane: "p1" }];
 	focused = "p1";
 	keepFails = false;
+	/** Number of `terminal.keep` calls that answer "no running terminal" (exit 1) before one succeeds. */
+	keepUnknownTimes = 0;
 	parkFails = false;
 	/** Number of `terminal.peek` calls that answer with an error before one succeeds. */
 	peekErrors = 0;
@@ -46,6 +48,10 @@ export class FakeHerdrApp {
 
 	private keep(terminal: string): HerdrResult {
 		if (this.keepFails) return { code: 1, stdout: "" };
+		if (this.keepUnknownTimes > 0) {
+			this.keepUnknownTimes--;
+			return { code: 1, stdout: JSON.stringify({ error: `no running terminal "${terminal}"` }) };
+		}
 		const pane = terminal.replace(/^t/, "p");
 		this.panes.push({ terminal, pane });
 		this.focused = pane;

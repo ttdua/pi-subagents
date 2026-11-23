@@ -144,6 +144,39 @@ describe("ViewerColumn placement", () => {
 	});
 });
 
+describe("ViewerColumn keep retries", () => {
+	it("retries terminal.keep while Herdr has not seen the terminal", async () => {
+		const { app, column, sleeps } = setup();
+		app.keepUnknownTimes = 2;
+		const v = viewer(10);
+		await column.place(v);
+		expect(column.isPlaced(v)).toBe(true);
+		expect(v.pane).toBe("p10");
+		expect(doCalls(app).filter((c) => c.includes("terminal.keep"))).toHaveLength(3);
+		expect(sleeps).toEqual([PEEK_RETRY_MS, PEEK_RETRY_MS]);
+		expect(doCalls(app).at(-1)).toBe("do pane.focus --pane p1");
+	});
+
+	it("gives up after PEEK_ATTEMPTS", async () => {
+		const { app, column } = setup();
+		app.keepUnknownTimes = 99;
+		const v = viewer(10);
+		await column.place(v);
+		expect(column.isPlaced(v)).toBe(false);
+		expect(column.isWaiting(v)).toBe(false);
+		expect(doCalls(app).filter((c) => c.includes("terminal.keep"))).toHaveLength(PEEK_ATTEMPTS);
+		expect(doCalls(app).at(-1)).toBe("do pane.focus --pane p1");
+	});
+
+	it("does not retry other keep failures", async () => {
+		const { app, column, sleeps } = setup();
+		app.keepFails = true;
+		await column.place(viewer(10));
+		expect(doCalls(app).filter((c) => c.includes("terminal.keep"))).toHaveLength(1);
+		expect(sleeps).toEqual([]);
+	});
+});
+
 describe("ViewerColumn focus and peek", () => {
 	it("focuses a placed viewer's pane", async () => {
 		const { app, column } = setup();
