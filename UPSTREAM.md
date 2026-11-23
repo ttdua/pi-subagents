@@ -279,3 +279,7 @@ Outside the table below, the fork also changes repository files that upstream ke
 | `docs/comparison-with-upstream.md` (Herdr) | edit | Herdr viewer column listed among fork features. |
 | `src/ui/transcript-content.ts` | edit | Add `resync()`: reset settled blocks, pending tools and the in-flight message, then consume the source's current history. |
 | `test/ui/transcript-content.test.ts` | edit | Cover `resync` dropping a stale in-flight message. |
+| `src/herdr/viewer-source.ts` | add | Followed session file and live/file switchable transcript source for Herdr viewers. |
+| `src/herdr/deferred-source.ts` | add | Transcript source wrapper holding events until a frame turn, with overflow resync. |
+| `test/herdr/viewer-source.test.ts` | add | Tests for the followed-file and switchable sources. |
+| `test/herdr/deferred-source.test.ts` | add | Tests for the deferred source. |
