@@ -32,9 +32,9 @@ Blocked by: 1, 2, 3
 
 Blocked by: 4
 
-- [ ] 5.1 Add `src/herdr/activate.ts` (detection plus construction) and wire it in `src/index.ts`: one `HerdrViewersSlot` in the composite observer; non-blocking activation at `session_start` guarded by a session generation; dispose in a `session_shutdown` handler registered after the lifecycle handler
-- [ ] 5.2 Extend `SessionNavigatorHandler` (`src/ui/session-navigator.ts`) with the optional `herdr` opener and the fallback to `openTranscript`; pass it from the `/subagents:sessions` registration
-- [ ] 5.3 Tests: `activate`, the navigator's Herdr branch and fallback, and composition-root (no Herdr exec outside Herdr; activation, stale-generation dispose and shutdown inside a faked Herdr; fleet `Enter` unchanged with Herdr active); stub `HC_TERMINAL_ID` empty in suites that do not test Herdr
+- [x] 5.1 Add `src/herdr/activate.ts` (detection plus construction) and wire it in `src/index.ts`: one `HerdrViewersSlot` in the composite observer; non-blocking activation at `session_start` guarded by a session generation; dispose in a `session_shutdown` handler registered after the lifecycle handler
+- [x] 5.2 Extend `SessionNavigatorHandler` (`src/ui/session-navigator.ts`) with the optional `herdr` opener and the fallback to `openTranscript`; pass it from the `/subagents:sessions` registration
+- [x] 5.3 Tests: `activate`, the navigator's Herdr branch and fallback, and composition-root (no Herdr exec outside Herdr; activation, stale-generation dispose and shutdown inside a faked Herdr; fleet `Enter` unchanged with Herdr active); stub `HC_TERMINAL_ID` empty in suites that do not test Herdr
 
 ## 6. Docs, provenance and manual E2E
 
