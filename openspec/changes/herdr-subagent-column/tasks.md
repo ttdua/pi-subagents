@@ -9,8 +9,8 @@ Blocked by: none
 
 Blocked by: none
 
-- [ ] 2.1 Add `src/herdr/viewer.ts` with the pure exports `parseArgs`, `splitLines`, `renderEntry` (TypeScript, `node:` imports only, erasable syntax only), per design D6; unit tests
-- [ ] 2.2 Add the main routine of `src/herdr/viewer.ts` (runs only as the entry module): title, wait for the file, follow appended bytes, rewrite reset, raw-mode input discard on a TTY, status-file polling, parent-pid watch with own keep off; integration tests spawning it against a temp file
+- [x] 2.1 Add `src/herdr/viewer.ts` with the pure exports `parseArgs`, `splitLines`, `renderEntry` (TypeScript, `node:` imports only, erasable syntax only), per design D6; unit tests
+- [x] 2.2 Add the main routine of `src/herdr/viewer.ts` (runs only as the entry module): title, wait for the file, follow appended bytes, rewrite reset, raw-mode input discard on a TTY, status-file polling, parent-pid watch with own keep off; integration tests spawning it against a temp file
 
 ## 3. Viewer column placement
 
