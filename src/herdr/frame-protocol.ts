@@ -181,22 +181,27 @@ interface StringBody {
 }
 
 const isParamOrIntermediate = (code: number): boolean => code >= 0x20 && code <= 0x3f;
-const isFinal = (code: number): boolean => code >= 0x40 && code <= 0x7e;
+const isCsiFinal = (code: number): boolean => code >= 0x40 && code <= 0x7e;
+// Generic ESC finals also include 0x30-0x3f (`ESC 7`, `ESC 8`, `ESC =`, `ESC >`).
+const isEscFinal = (code: number): boolean => code >= 0x30 && code <= 0x7e;
 
 /** CSI: parameter and intermediate bytes, then one final byte. Only `ESC [ params m` is kept. */
 function scanCsi(line: string, start: number, escaped: boolean): Sequence {
 	let end = start;
 	while (end < line.length && isParamOrIntermediate(line.charCodeAt(end))) end++;
-	if (end < line.length && isFinal(line.charCodeAt(end))) end++;
+	if (end < line.length && isCsiFinal(line.charCodeAt(end))) end++;
 	const body = line.slice(start, end);
 	return { end, keep: escaped && SGR_BODY.test(body) ? `${ESC}[${body}` : undefined };
 }
 
-/** Reads a string-type body up to BEL, C1 ST or `ESC \`; an ESC of any other kind ends it unterminated. */
-function scanString(line: string, start: number): StringBody {
+/**
+ * Reads a string body up to its terminator. BEL ends it only when `allowBel` (OSC); DCS, SOS, PM
+ * and APC end at ST alone. An ESC that is not `ESC \` ends it unterminated.
+ */
+function scanString(line: string, start: number, allowBel: boolean): StringBody {
 	for (let j = start; j < line.length; j++) {
 		const ch = line[j];
-		if (ch === BEL) return { end: j + 1, body: line.slice(start, j), terminator: "bel" };
+		if (ch === BEL && allowBel) return { end: j + 1, body: line.slice(start, j), terminator: "bel" };
 		if (ch === C1_ST) return { end: j + 1, body: line.slice(start, j), terminator: "st" };
 		if (ch !== ESC) continue;
 		if (line[j + 1] === "\\") return { end: j + 2, body: line.slice(start, j), terminator: "esc" };
@@ -213,16 +218,16 @@ function isKeptHyperlink(s: StringBody): boolean {
 }
 
 function scanOsc(line: string, start: number, escaped: boolean): Sequence {
-	const s = scanString(line, start);
+	const s = scanString(line, start, true);
 	if (!escaped || !isKeptHyperlink(s)) return { end: s.end };
 	return { end: s.end, keep: `${ESC}]${s.body}${s.terminator === "bel" ? BEL : ST}` };
 }
 
-/** Two-byte escape: intermediate bytes, then an optional final byte. */
+/** Generic escape: intermediate bytes (0x20-0x2f), then an optional final byte. */
 function scanTwoByte(line: string, start: number): number {
 	let end = start;
 	while (end < line.length && line.charCodeAt(end) >= 0x20 && line.charCodeAt(end) <= 0x2f) end++;
-	if (end < line.length && isFinal(line.charCodeAt(end))) end++;
+	if (end < line.length && isEscFinal(line.charCodeAt(end))) end++;
 	return end;
 }
 
@@ -231,7 +236,7 @@ function escapeSequence(line: string, next: number): Sequence {
 	const ch = line[next];
 	if (ch === "[") return scanCsi(line, next + 1, true);
 	if (ch === "]") return scanOsc(line, next + 1, true);
-	if (ch === "P" || ch === "X" || ch === "^" || ch === "_") return { end: scanString(line, next + 1).end };
+	if (ch === "P" || ch === "X" || ch === "^" || ch === "_") return { end: scanString(line, next + 1, false).end };
 	return { end: scanTwoByte(line, next) };
 }
 
@@ -241,7 +246,7 @@ function sequenceAt(line: string, i: number): Sequence | undefined {
 	if (ch === ESC) return escapeSequence(line, i + 1);
 	if (ch === C1_CSI) return scanCsi(line, i + 1, false);
 	if (ch === C1_OSC) return scanOsc(line, i + 1, false);
-	if (C1_STRING_STARTS.has(ch)) return { end: scanString(line, i + 1).end };
+	if (C1_STRING_STARTS.has(ch)) return { end: scanString(line, i + 1, false).end };
 	return undefined;
 }
 

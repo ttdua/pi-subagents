@@ -88,6 +88,38 @@ describe("frame protocol", () => {
 		expect(sanitizeFrameLine("\x1b]8;;u\x1bP1$r\x1b\\L\x07")).toBe("L");
 	});
 
+	it("drops a DCS payload containing BEL, which only ends OSC", () => {
+		expect(sanitizeFrameLine("\x1bPprivate\x07LEAK\x1b\\X")).toBe("X");
+	});
+
+	it("drops SOS, PM and APC payloads containing BEL before ST", () => {
+		expect(sanitizeFrameLine("\x1bXa\x07b\x1b\\X")).toBe("X");
+		expect(sanitizeFrameLine("\x1b^a\x07b\x1b\\X")).toBe("X");
+		expect(sanitizeFrameLine("\x1b_a\x07b\x1b\\X")).toBe("X");
+	});
+
+	it("drops C1-prefixed DCS, SOS, PM and APC payloads containing BEL before C1 ST", () => {
+		expect(sanitizeFrameLine("\x90a\x07b\x9cX")).toBe("X");
+		expect(sanitizeFrameLine("\x98a\x07b\x9cX")).toBe("X");
+		expect(sanitizeFrameLine("\x9ea\x07b\x9cX")).toBe("X");
+		expect(sanitizeFrameLine("\x9fa\x07b\x9cX")).toBe("X");
+	});
+
+	it("drops an unterminated DCS payload to the end of the line", () => {
+		expect(sanitizeFrameLine("A\x1bPsecret\x07more")).toBe("A");
+	});
+
+	it("drops a two-byte ESC final in 0x30-0x3f such as ESC 7 and ESC 8", () => {
+		expect(sanitizeFrameLine("\x1b7X")).toBe("X");
+		expect(sanitizeFrameLine("\x1b8X")).toBe("X");
+		expect(sanitizeFrameLine("\x1b=X")).toBe("X");
+		expect(sanitizeFrameLine("\x1b>X")).toBe("X");
+	});
+
+	it("drops an ESC intermediate and its final byte, such as ESC ( B", () => {
+		expect(sanitizeFrameLine("\x1b(BX")).toBe("X");
+	});
+
 	it("drops an OSC 8 ended by C1 ST, keeping the SGR before it", () => {
 		expect(sanitizeFrameLine("\x1b[1mA\x1b]8;;u\x9cZ")).toBe("\x1b[1mAZ");
 	});
