@@ -104,6 +104,16 @@ describe("fill layout", () => {
     }
   });
 
+  it("fill layout renders exactly rows lines at widths 1-5", () => {
+    for (const width of [1, 2, 3, 4, 5]) {
+      for (const rows of [1, 2, 40]) {
+        const lines = fillPane(rows).render(width);
+        expect(lines).toHaveLength(rows);
+        for (const line of lines) expect(visibleWidth(line)).toBeLessThanOrEqual(width);
+      }
+    }
+  });
+
   it("fill layout ignores close keys", () => {
     const done = vi.fn();
     const pane = fillPane(40, undefined, done);

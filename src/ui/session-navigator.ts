@@ -320,7 +320,7 @@ export class TranscriptPane implements Component {
   }
 
   render(width: number): string[] {
-    if (width < 6) return [];
+    if (width < 6) return this.layout === "fill" ? Array.from({ length: this.tui.terminal.rows }, () => "") : [];
     const th = this.theme;
     this.renderedWidth = width;
     const lines: string[] = [];
