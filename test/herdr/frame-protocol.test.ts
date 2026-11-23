@@ -1,0 +1,101 @@
+import { describe, expect, it } from "vitest";
+import {
+	chunkInput,
+	encodeMessage,
+	InputFramer,
+	MAX_INPUT_DATA,
+	MessageSplitter,
+	parsePiMessage,
+	parseViewerMessage,
+	sanitizeFrameLine,
+	type ViewerMessage,
+} from "#src/herdr/frame-protocol";
+
+const wire = (line: string) => line.replace(/\n$/, "");
+
+describe("frame protocol", () => {
+	it("round-trips every message type", () => {
+		const viewerMessages: ViewerMessage[] = [
+			{ type: "hello", key: "k", cols: 80, rows: 24 },
+			{ type: "resize", cols: 120, rows: 40 },
+			{ type: "input", data: "\x1b[A" },
+			{ type: "wheel", delta: -3 },
+		];
+		for (const message of viewerMessages) {
+			expect(parseViewerMessage(wire(encodeMessage(message)))).toEqual(message);
+		}
+		const frame = { type: "frame" as const, lines: ["one", "\x1b[1mtwo\x1b[22m"] };
+		expect(parsePiMessage(wire(encodeMessage(frame)))).toEqual(frame);
+	});
+
+	it("rejects malformed and out-of-bounds lines", () => {
+		const rejected = [
+			{ type: "hello", key: "k", cols: 0, rows: 5 },
+			{ type: "hello", key: "k", cols: 1001, rows: 5 },
+			{ type: "hello", key: "", cols: 80, rows: 24 },
+			{ type: "resize", cols: 80, rows: 1.5 },
+			{ type: "wheel", delta: Number.NaN },
+			{ type: "input", data: "x".repeat(MAX_INPUT_DATA + 1) },
+		];
+		for (const message of rejected) {
+			expect(parseViewerMessage(JSON.stringify(message))).toBeUndefined();
+		}
+		expect(parseViewerMessage("{")).toBeUndefined();
+		expect(parseViewerMessage(JSON.stringify({ type: "frame", lines: [1] }))).toBeUndefined();
+		expect(parsePiMessage(JSON.stringify({ type: "frame", lines: [1] }))).toBeUndefined();
+	});
+
+	it("splits across chunk boundaries", () => {
+		const line = JSON.stringify({ type: "input", data: "é\x1b[1m" });
+		const bytes = Buffer.from(`${line}\n`);
+		const splitter = new MessageSplitter(1024);
+		const lines: string[] = [];
+		for (const byte of bytes) {
+			lines.push(...splitter.push(Buffer.from([byte])).lines);
+		}
+		expect(lines).toEqual([line]);
+	});
+
+	it("reports overflow past the line cap", () => {
+		expect(new MessageSplitter(8).push("123456789")).toEqual({ lines: [], overflow: true });
+	});
+
+	it("keeps SGR and OSC 8, drops other sequences", () => {
+		const input =
+			"\x1b[1mA\x1b[22m\x1b]8;;https://x\x1b\\L\x1b]8;;\x1b\\\x1b[2J\x1b[H\x1b]0;t\x07\x1bP1$r\x1b\\\x9b31m\x07\x00B";
+		expect(sanitizeFrameLine(input)).toBe("\x1b[1mA\x1b[22m\x1b]8;;https://x\x1b\\L\x1b]8;;\x1b\\B");
+	});
+
+	it("turns tab into a space", () => {
+		expect(sanitizeFrameLine("a\tb")).toBe("a b");
+	});
+
+	it("frames a wheel report split at every point", () => {
+		const report = "a\x1b[<64;3;4Mb";
+		for (let split = 0; split <= report.length; split++) {
+			const framer = new InputFramer();
+			const out = [...framer.push(report.slice(0, split)), ...framer.push(report.slice(split))];
+			expect(out).toEqual([
+				{ type: "input", data: "a" },
+				{ type: "wheel", delta: -3 },
+				{ type: "input", data: "b" },
+			]);
+		}
+	});
+
+	it("drops non-wheel mouse reports", () => {
+		expect(new InputFramer().push("\x1b[<0;3;4M\x1b[<0;3;4m")).toEqual([]);
+	});
+
+	it("passes a long unterminated report through as input", () => {
+		const report = `\x1b[<${"9".repeat(40)}`;
+		expect(new InputFramer().push(report)).toEqual([{ type: "input", data: report }]);
+	});
+
+	it("chunks input at the cap without splitting a surrogate pair", () => {
+		expect(chunkInput(`${"a".repeat(4095)}😀b`)).toEqual(["a".repeat(4095), "😀b"]);
+		for (const piece of chunkInput("x".repeat(10_000))) {
+			expect(piece.length).toBeLessThanOrEqual(MAX_INPUT_DATA);
+		}
+	});
+});

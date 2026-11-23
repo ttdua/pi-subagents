@@ -21,7 +21,7 @@ Outside the table below, the fork also changes repository files that upstream ke
 |---|---|---|
 | `package.json` | edit | Rename to private `@ttdua/pi-subagents`; drop `publishConfig`; replace `catalog:` versions with the exact versions from upstream `pnpm-workspace.yaml` at the tag; pin the `@earendil-works/*` dev dependencies to `1.5.0` to match the root; `lint` without markdown lint; `prepack` through `bun`. Declare `pi.subagents.agents` (`./agents`) and ship `agents` in `files`. Pin `@biomejs/biome` to `2.6.8`. `files` ships `docs/architecture/*.md` (not the pruned phase history); `lint:md` checks the scope set in `.rumdl.toml`. |
 | `scripts/verify-public-types.sh` | edit | Pack, install and type-check through `bun` instead of `pnpm`; the consumer probe imports the package name read from `package.json` (`@ttdua/pi-subagents`), not the upstream name. |
-| `tsconfig.json` | edit | Inline upstream's `tsconfig.base.json` compiler options, since the base file lives outside the subtree. |
+| `tsconfig.json` | edit | Inline upstream's `tsconfig.base.json` compiler options, since the base file lives outside the subtree; `allowImportingTsExtensions` lets `viewer.ts` import `./frame-protocol.ts`. |
 | `test/ui/widget-viewport.test.ts` | edit | `fakeTerminal` gains `setProgramStatus`, required by the `Terminal` type in pi-tui 1.5.0. Registry fixture holds `general`. |
 | `test/ui/session-navigator.test.ts` | edit | Bind top/bottom to `home`/`end` in the test keybindings; pi-tui 1.5.0 defaults them to `ctrl+home`/`ctrl+end`. Cover `openTranscript`. Labels show the recorded type. `paneOf` asserts the last `custom` call with `!` (biome `noUnsafeOptionalChaining`). Cover the `herdr` option: open in Herdr, fallback, unchanged command. |
 | `src/ui/session-navigation.ts` | edit | Add `navigationEntryFor`, the per-record live/snapshot entry, shared by `listNavigableAgents` and the fleet list. |
@@ -252,6 +252,8 @@ Outside the table below, the fork also changes repository files that upstream ke
 | `test/herdr/detect.test.ts` | add | Tests for Herdr detection scenarios and malformed output. |
 | `test/herdr/fake-cli.ts` | add | `FakeHerdrCli` test double recording calls and scripting replies. |
 | `src/herdr/viewer.ts` | add | Standalone read-only transcript viewer Herdr runs per subagent (node: built-ins only). |
+| `src/herdr/frame-protocol.ts` | add | Viewer ↔ Pi NDJSON message types and parsers, input framer and frame sanitizer (node: built-ins only). |
+| `test/herdr/frame-protocol.test.ts` | add | Tests for frame round-trips, bounds, split chunks, input framing and sanitizing. |
 | `test/herdr/viewer.test.ts` | add | Tests for viewer argument parsing, JSONL line splitting and entry rendering. |
 | `test/herdr/viewer.integration.test.ts` | add | Runs the real viewer file under the runtime: follow, rewrite, status, input discard, parent exit. |
 | `src/herdr/column.ts` | add | `ViewerColumn`: viewer placement in a right-hand column with waiting FIFO, via `herdr-app`. |
