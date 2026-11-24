@@ -53,11 +53,11 @@ Blocked by: 1, 5
 
 Blocked by: 2, 6
 
-- [ ] 7.1 `src/herdr/viewer-process.ts`: launch argv `--socket --key --pid --parent-terminal` (design D6)
-- [ ] 7.2 `src/ui/session-navigation.ts`: export `buildHeading`; `src/herdr/herdr-observer.ts`: `titleOf` → `headingOf`, frame server instead of `ViewerStatusFiles`, `frames.refresh` called directly in run-started/finished hooks, `socketPath` + `register` before start, `unregister` in `forget`, `close` in `dispose` (design D3, D5, D6)
-- [ ] 7.3 `src/herdr/activate.ts` and `src/index.ts`: theme through `HerdrActivation.start({ cwd, mode, theme })` → `Activate` → `ActivateInput.theme`; build the frame server with `createRenderer`
-- [ ] 7.4 Delete `src/herdr/status-files.ts` and `test/herdr/status-files.test.ts`
-- [ ] 7.5 Update `test/herdr/viewer-process.test.ts`, `test/herdr/herdr-observer.test.ts`, `test/herdr/activate.test.ts`, `test/composition-root.test.ts` for the new wiring, keeping every existing `herdr-viewer-column` scenario test passing; add status-refresh-before-queue and heading tests
+- [x] 7.1 `src/herdr/viewer-process.ts`: launch argv `--socket --key --pid --parent-terminal` (design D6)
+- [x] 7.2 `src/ui/session-navigation.ts`: export `buildHeading`; `src/herdr/herdr-observer.ts`: `titleOf` → `headingOf`, frame server instead of `ViewerStatusFiles`, `frames.refresh` called directly in run-started/finished hooks, `socketPath` + `register` before start, `unregister` in `forget`, `close` in `dispose` (design D3, D5, D6)
+- [x] 7.3 `src/herdr/activate.ts` and `src/index.ts`: theme through `HerdrActivation.start({ cwd, mode, theme })` → `Activate` → `ActivateInput.theme`; build the frame server with `createRenderer`
+- [x] 7.4 Delete `src/herdr/status-files.ts` and `test/herdr/status-files.test.ts`
+- [x] 7.5 Update `test/herdr/viewer-process.test.ts`, `test/herdr/herdr-observer.test.ts`, `test/herdr/activate.test.ts`, `test/composition-root.test.ts` for the new wiring, keeping every existing `herdr-viewer-column` scenario test passing; add status-refresh-before-queue and heading tests
 
 ## 8. Docs and provenance
 
