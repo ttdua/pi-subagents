@@ -251,11 +251,11 @@ Outside the table below, the fork also changes repository files that upstream ke
 | `test/herdr/cli.test.ts` | add | Tests for the exec port result mapping and `HerdrQueue` ordering, failure and close. |
 | `test/herdr/detect.test.ts` | add | Tests for Herdr detection scenarios and malformed output. |
 | `test/herdr/fake-cli.ts` | add | `FakeHerdrCli` test double recording calls and scripting replies. |
-| `src/herdr/viewer.ts` | add | Standalone read-only transcript viewer Herdr runs per subagent (node: built-ins only). |
+| `src/herdr/viewer.ts` | add | Standalone read-only transcript viewer Herdr runs per subagent (node: built-ins only). Rewritten (herdr-viewer-pi-render) as a frame painter over a Unix socket. |
 | `src/herdr/frame-protocol.ts` | add | Viewer ↔ Pi NDJSON message types and parsers, input framer and frame sanitizer (node: built-ins only). |
 | `test/herdr/frame-protocol.test.ts` | add | Tests for frame round-trips, bounds, split chunks, input framing and sanitizing. |
-| `test/herdr/viewer.test.ts` | add | Tests for viewer argument parsing, JSONL line splitting and entry rendering. |
-| `test/herdr/viewer.integration.test.ts` | add | Runs the real viewer file under the runtime: follow, rewrite, status, input discard, parent exit. |
+| `test/herdr/viewer.test.ts` | add | Tests for viewer argument parsing, frame painting and idempotent exit. Rewritten for herdr-viewer-pi-render. |
+| `test/herdr/viewer.integration.test.ts` | add | Runs the real viewer file under the runtime against a loopback socket: hello, frames, input, wheel, restore on close/error/overflow/SIGTERM, parent exit. Rewritten for herdr-viewer-pi-render. |
 | `src/herdr/column.ts` | add | `ViewerColumn`: viewer placement in a right-hand column with waiting FIFO, via `herdr-app`. |
 | `test/herdr/column.test.ts` | add | Tests for column placement, focus restore, overflow, park and peek retry. |
 | `test/herdr/fake-herdr-app.ts` | add | `FakeHerdrCli` preset following a mutable pane model of `herdr-app`. |

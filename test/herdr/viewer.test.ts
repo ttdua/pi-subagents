@@ -1,108 +1,83 @@
 import { describe, expect, it } from "vitest";
-import { enableRawMode, parseArgs, renderEntry, sanitize, splitLines } from "#src/herdr/viewer";
-
-const ANSI = /\x1b\[[0-9;]*m/g;
-const plain = (lines: string[]) => lines.map((l) => l.replace(ANSI, ""));
-
-const message = (role: string, content: unknown, extra: Record<string, unknown> = {}) => ({
-	type: "message",
-	id: "m1",
-	message: { role, content, ...extra },
-});
+import { createExit, enableRawMode, paintFrame, parseArgs, RESTORE } from "#src/herdr/viewer";
 
 describe("parseArgs", () => {
 	it("parses the full viewer CLI", () => {
-		const argv = ["--file", "/s.jsonl", "--status", "/st.json", "--pid", "42", "--parent-terminal", "t1", "--title", "Explore · find x"];
-		expect(parseArgs(argv)).toEqual({ file: "/s.jsonl", status: "/st.json", pid: 42, parentTerminal: "t1", title: "Explore · find x" });
+		const argv = ["--socket", "/tmp/s.sock", "--key", "k1", "--pid", "42", "--parent-terminal", "t1"];
+		expect(parseArgs(argv)).toEqual({ socket: "/tmp/s.sock", key: "k1", pid: 42, parentTerminal: "t1" });
 	});
 
 	it("leaves parentTerminal undefined when absent", () => {
-		expect(parseArgs(["--file", "/s", "--status", "/st", "--pid", "1", "--title", "x"]).parentTerminal).toBeUndefined();
+		expect(parseArgs(["--socket", "/s", "--key", "k", "--pid", "1"]).parentTerminal).toBeUndefined();
 	});
 
-	it("throws when --file is missing", () => {
-		expect(() => parseArgs(["--status", "/st", "--pid", "1", "--title", "x"])).toThrow(/--file/);
+	it("throws when --socket is missing", () => {
+		expect(() => parseArgs(["--key", "k", "--pid", "1"])).toThrow(/--socket/);
+	});
+
+	it("throws when --key is missing", () => {
+		expect(() => parseArgs(["--socket", "/s", "--pid", "1"])).toThrow(/--key/);
 	});
 
 	it("throws when --pid is not a positive integer", () => {
-		expect(() => parseArgs(["--file", "/s", "--status", "/st", "--pid", "abc", "--title", "x"])).toThrow(/--pid/);
+		expect(() => parseArgs(["--socket", "/s", "--key", "k", "--pid", "abc"])).toThrow(/--pid/);
+		expect(() => parseArgs(["--socket", "/s", "--key", "k", "--pid", "0"])).toThrow(/--pid/);
 	});
 });
 
-describe("splitLines", () => {
-	it("keeps an incomplete trailing line", () => {
-		expect(splitLines('{"a":1}\n{"b"')).toEqual({ lines: ['{"a":1}'], rest: '{"b"' });
+describe("paintFrame", () => {
+	it("wraps rows in a synchronized update with line clears", () => {
+		const out = paintFrame(["x", "y"], 5);
+		expect(out.startsWith("\x1b[?2026h\x1b[H")).toBe(true);
+		expect(out).toContain("x\x1b[K\r\ny\x1b[K");
+		expect(out.endsWith("\x1b[J\x1b[?2026l")).toBe(true);
 	});
 
-	it("returns every line when the buffer ends with a newline and drops blank lines", () => {
-		expect(splitLines("a\n\nb\r\n")).toEqual({ lines: ["a", "b"], rest: "" });
-	});
-});
-
-describe("renderEntry", () => {
-	it("renders user text as a prompt line", () => {
-		expect(plain(renderEntry(message("user", [{ type: "text", text: "hi" }])))).toEqual(["> hi"]);
+	it("paints a sanitized row verbatim", () => {
+		expect(paintFrame(["x"], 2)).toContain("x\x1b[K");
 	});
 
-	it("renders user string content", () => {
-		expect(plain(renderEntry(message("user", "hi")))).toEqual(["> hi"]);
-	});
-
-	it("renders assistant text as is", () => {
-		expect(plain(renderEntry(message("assistant", [{ type: "text", text: "one\ntwo" }])))).toEqual(["one", "two"]);
-	});
-
-	it("renders a tool call with its JSON args", () => {
-		const entry = message("assistant", [{ type: "toolCall", id: "c1", name: "read", arguments: { path: "x" } }]);
-		expect(plain(renderEntry(entry))).toEqual(['-> read {"path":"x"}']);
-	});
-
-	it("truncates tool call args to 120 chars", () => {
-		const entry = message("assistant", [{ type: "toolCall", id: "c1", name: "bash", arguments: { command: "y".repeat(300) } }]);
-		const [line] = plain(renderEntry(entry));
-		expect(line.startsWith("-> bash ")).toBe(true);
-		expect(line.slice("-> bash ".length).length).toBeLessThanOrEqual(121);
-		expect(line.slice("-> bash ".length, "-> bash ".length + 120)).toBe(JSON.stringify({ command: "y".repeat(300) }).slice(0, 120));
-	});
-
-	it("truncates tool results to 8 lines with a remainder count", () => {
-		const text = Array.from({ length: 12 }, (_, i) => `l${i + 1}`).join("\n");
-		const entry = message("toolResult", [{ type: "text", text }], { toolCallId: "c1", toolName: "read", isError: false });
-		expect(plain(renderEntry(entry))).toEqual(["l1", "l2", "l3", "l4", "l5", "l6", "l7", "l8", "(+4 lines)"]);
-	});
-
-	it("truncates thinking to 3 lines", () => {
-		const entry = message("assistant", [{ type: "thinking", thinking: "a\nb\nc\nd\ne" }]);
-		expect(plain(renderEntry(entry))).toHaveLength(3);
-		expect(plain(renderEntry(entry))[0]).toContain("a");
-	});
-
-	it("renders compaction as one line", () => {
-		expect(renderEntry({ type: "compaction", summary: "long\nsummary" })).toHaveLength(1);
-	});
-
-	it.each([
-		{ type: "session", version: 3, id: "s", cwd: "/" },
-		{ type: "model_change", provider: "x" },
-		{ type: "something_new" },
-		null,
-		"text",
-	])("renders nothing for %j", (entry) => {
-		expect(renderEntry(entry)).toEqual([]);
+	it("paints at most `rows` rows", () => {
+		const out = paintFrame(["a", "b", "c", "d"], 2);
+		expect(out).toContain("b\x1b[K");
+		expect(out).not.toContain("c\x1b[K");
 	});
 });
 
-describe("sanitize", () => {
-	it("removes escape, bell, CR, DEL and C1 controls but keeps tab and newline", () => {
-		expect(sanitize("a\x1b]52;c;ZGF0YQ\x07b\x1b[31mc\rd\x7fe\x85f\x9bg\th\ni")).toBe("a]52;c;ZGF0YQb[31mcdefg\th\ni");
+describe("createExit", () => {
+	it("exit restores the terminal once", () => {
+		const written: string[] = [];
+		const raw: boolean[] = [];
+		let keepOff = 0;
+		const codes: number[] = [];
+		const exit = createExit({
+			write: (s) => void written.push(s),
+			stdin: { isTTY: true, setRawMode: (m) => void raw.push(m) },
+			keepOff: () => void keepOff++,
+			exit: (c) => void codes.push(c),
+		});
+		exit();
+		exit();
+		expect(written).toEqual([RESTORE]);
+		expect(raw).toEqual([false]);
+		expect(keepOff).toBe(1);
+		expect(codes).toEqual([0]);
 	});
 
-	it("is applied to every rendered string before the viewer's own styling", () => {
-		const out = renderEntry(message("toolResult", [{ type: "text", text: "x\x1b[2Jy\rdone (completed)" }]));
-		expect(out).toEqual(["\x1b[2mx[2Jydone (completed)\x1b[22m"]);
-		expect(renderEntry(message("user", "hi\x1b]0;t\x07"))).toEqual(["> hi]0;t"]);
-		expect(renderEntry(message("assistant", [{ type: "toolCall", id: "c", name: "r\x1b", arguments: { p: "\x1b[1m" } }]))[0]).not.toContain("\x1b");
-		expect(renderEntry({ type: "compaction", summary: "s\x1b[0m" })).toEqual(["\x1b[2m(compacted) s[0m\x1b[22m"]);
+	it("still exits when setRawMode throws", () => {
+		const codes: number[] = [];
+		createExit({
+			write: () => {},
+			stdin: {
+				isTTY: true,
+				setRawMode: () => {
+					throw new Error("EIO");
+				},
+			},
+			keepOff: () => {},
+			exit: (c) => void codes.push(c),
+		})();
+		expect(codes).toEqual([0]);
 	});
 });
 
