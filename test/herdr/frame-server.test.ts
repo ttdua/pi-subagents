@@ -269,6 +269,27 @@ describe("FrameServer", () => {
 		expect(fakes[1].dispose).not.toHaveBeenCalled();
 	});
 
+	it("closes the viewer whose real socket write fails", async () => {
+		const server = makeServer();
+		server.register("a", targetOf());
+		server.register("b", targetOf());
+		await server.socketPath();
+		const sockets = serverSockets(server);
+		await hello(server, "a");
+		const b = await hello(server, "b");
+		await until(() => fakes.length === 2 && sockets.length === 2);
+		vi.mocked(debugLog).mockClear();
+		// End the writable side for real: the next write fails with ERR_STREAM_WRITE_AFTER_END.
+		sockets[0].end();
+		fakes[0].send(["x"]);
+		await until(() => fakes[0].dispose.mock.calls.length === 1);
+		expect(debugLog).toHaveBeenCalledWith("viewer socket write", expect.objectContaining({ code: "ERR_STREAM_WRITE_AFTER_END" }));
+		expect(sockets[0].destroyed).toBe(true);
+		fakes[1].send(["y"]);
+		await until(() => b.messages.length === 1);
+		expect(fakes[1].dispose).not.toHaveBeenCalled();
+	});
+
 	it("one renderer failing leaves another updating", async () => {
 		const theme = { fg: (_c: string, t: string) => t, bold: (t: string) => t, getThinkingBorderColor: () => (t: string) => t };
 		const keys = new KeybindingsManager(TUI_KEYBINDINGS, {});
