@@ -48,6 +48,7 @@
 | Viewer CLI | modified | `viewer.ts --socket <path> --key <key> --pid <n> [--parent-terminal <id>]`; `--file`, `--status`, `--title` removed | no |
 | `ViewerArgs` | modified | `{ socket: string; key: string; pid: number; parentTerminal: string \| undefined }` | no |
 | `paintFrame` | new | `(lines: string[], rows: number) => string` in `viewer.ts`; `"\x1b[?2026h\x1b[H" + lines.slice(0, rows).map(l => l + "\x1b[K").join("\r\n") + "\x1b[J\x1b[?2026l"` | no |
+| `createSender` / `Sender` | new (added in apply, Task 2 fix round 1) | `interface Sender { hello(m: Extract<ViewerMessage, { type: "hello" }>): void; send(m: ViewerMessage): void }`; `createSender(writeLine: (line: string) => void): Sender` in `viewer.ts` — keeps `hello` first: messages sent before it are queued and flushed after it in order, queued `resize` dropped (hello carries the current size). Reason: review found input/resize could reach the socket before `hello` | no |
 | `RESTORE` | new | `const RESTORE = "\x1b[?1006l\x1b[?1000l\x1b[?25h\x1b[?1049l"` written once on exit, then `setRawMode(false)` | no |
 | `TranscriptPaneOptions` | modified | adds `layout?: "docked" \| "fill"` (default `"docked"`) and `status?: () => string \| undefined` | no |
 | `TranscriptPane.resync` / `TranscriptContent.resync` | new | `resync(): void` — reset settled blocks, pending tools and the in-flight message, then consume the source's current history | no |
