@@ -55,6 +55,16 @@ describe("DeferredSource", () => {
 		expect(got).toEqual([last]);
 	});
 
+	it("collapses message_update only for consecutive events", () => {
+		const { source, emit, got } = setup();
+		const [first, tl, last] = [update("a"), tool(1), update("b")];
+		emit(first);
+		emit(tl);
+		emit(last);
+		source.flush();
+		expect(got).toEqual([first, tl, last]);
+	});
+
 	it("drops an overflowing queue and asks for a resync", () => {
 		const { source, emit, got } = setup();
 		for (let i = 0; i <= MAX_QUEUED_EVENTS; i++) emit(tool(i));

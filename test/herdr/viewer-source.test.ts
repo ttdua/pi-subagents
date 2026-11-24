@@ -67,6 +67,36 @@ describe("followedFileSource", () => {
 		expect(source.getMessages()).toHaveLength(1);
 	});
 
+	it("empties and notifies when a changed file becomes unreadable, then recovers", () => {
+		const timers = new FakeTimers();
+		const env = fileEnv(`${header}\n${userLine("1", "hi")}\n`);
+		const source = followedFileSource("/f", { ...env.deps, timers });
+		const onChange = vi.fn();
+		source.subscribe(onChange);
+		expect(source.getMessages()).toHaveLength(1);
+		const child = JSON.stringify({ type: "message", id: "2", parentId: "1", timestamp: "2026-01-01T00:00:02Z", message: { role: "user", content: "more", timestamp: 2 } });
+		env.state.text = `${header}\n${userLine("1", "hi")}\n${child}\n`;
+		env.state.failRead = 1;
+		timers.tick(FILE_POLL_MS);
+		expect(source.getMessages()).toEqual([]);
+		expect(onChange).toHaveBeenCalledTimes(1);
+		timers.tick(FILE_POLL_MS);
+		expect(source.getMessages()).toHaveLength(2);
+		expect(onChange).toHaveBeenCalledTimes(2);
+	});
+
+	it("empties and notifies when the file disappears after a successful read", () => {
+		const timers = new FakeTimers();
+		const env = fileEnv(`${header}\n${userLine("1", "hi")}\n`);
+		const source = followedFileSource("/f", { ...env.deps, timers });
+		const onChange = vi.fn();
+		source.subscribe(onChange);
+		env.state.text = undefined;
+		timers.tick(FILE_POLL_MS);
+		expect(source.getMessages()).toEqual([]);
+		expect(onChange).toHaveBeenCalledTimes(1);
+	});
+
 	it("has no tool definitions and no streaming", () => {
 		const source = followedFileSource("/f", { ...fileEnv().deps, timers: new FakeTimers() });
 		expect(source.getToolDefinition("bash")).toBeUndefined();

@@ -110,20 +110,23 @@ export function followedFileSource(
 	let snapshot: TranscriptSource = emptySource;
 	let seen: FileStat | undefined;
 
+	/** Drop to an empty snapshot, forgetting the metadata so the next poll reads again; true when messages were dropped. */
+	const empty = (): boolean => {
+		const had = snapshot !== emptySource;
+		snapshot = emptySource;
+		seen = undefined;
+		return had;
+	};
+
 	/** Rebuild when the file changed; true when the snapshot was replaced. */
 	const refresh = (): boolean => {
 		const current = stat(outputFile);
-		if (current === undefined) {
-			const had = snapshot !== emptySource;
-			snapshot = emptySource;
-			seen = undefined;
-			return had;
-		}
+		if (current === undefined) return empty();
 		if (seen && current.size === seen.size && current.mtimeMs === seen.mtimeMs) return false;
 		try {
 			snapshot = fileSnapshotSource(outputFile, readFile);
 		} catch {
-			return false; // not recorded as seen: the next poll reads again
+			return empty();
 		}
 		seen = current;
 		return true;
