@@ -46,8 +46,8 @@ Blocked by: 3, 4
 
 Blocked by: 1, 5
 
-- [ ] 6.1 Add `src/herdr/frame-server.ts`: lazy `listen` on a `0700` mkdtemp dir under `<tmpdir>/pi-subagents-herdr/`, socket path length check, `register`, `refresh`, `unregister`, renderer per `hello`, newer connection replaces older, one pending frame per connection on backpressure, incoming bounds, write error closes the connection, `close()` removes renderers, sockets and dir; everything unref'd (design D1, D6, D7)
-- [ ] 6.2 Tests `test/herdr/frame-server.test.ts` over a real Unix socket in a temp dir: dir mode, no socket before first use, hello → frames, unknown key closed, resize/input/wheel routed, replacement, blocked reader keeps one pending frame and gets the latest on drain, oversized line closes only that connection, send failure closes only that viewer while another keeps updating, render failure in one renderer leaves another updating, close cleans up
+- [x] 6.1 Add `src/herdr/frame-server.ts`: lazy `listen` on a `0700` mkdtemp dir under `<tmpdir>/pi-subagents-herdr/`, socket path length check, `register`, `refresh`, `unregister`, renderer per `hello`, newer connection replaces older, one pending frame per connection on backpressure, incoming bounds, write error closes the connection, `close()` removes renderers, sockets and dir; everything unref'd (design D1, D6, D7)
+- [x] 6.2 Tests `test/herdr/frame-server.test.ts` over a real Unix socket in a temp dir: dir mode, no socket before first use, hello → frames, unknown key closed, resize/input/wheel routed, replacement, blocked reader keeps one pending frame and gets the latest on drain, oversized line closes only that connection, send failure closes only that viewer while another keeps updating, render failure in one renderer leaves another updating, close cleans up
 
 ## 7. Wiring and removal of status files
 
