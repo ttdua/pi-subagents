@@ -117,6 +117,9 @@ export class ViewerRenderer {
 	private statusLabel: string;
 	private timer: unknown;
 	private inTurn = false;
+	/** True while the pane renders; a render requested then is not served by the frame in progress. */
+	private painting = false;
+	private renderDirty = false;
 	private disposed = false;
 	private lastSent: string[] | undefined;
 	private pendingSize: { cols: number; rows: number } | undefined;
@@ -127,6 +130,7 @@ export class ViewerRenderer {
 		this.timers = o.timers ?? realTimers;
 		this.tui = new HeadlessTui(() => {
 			if (!this.inTurn) this.schedule();
+			else if (this.painting) this.renderDirty = true;
 		});
 		this.source = o.source ?? new SwitchableSource(o.target);
 		this.deferred = new DeferredSource(this.source, () => this.schedule());
@@ -201,7 +205,8 @@ export class ViewerRenderer {
 			debugLog("viewer frame", err);
 		} finally {
 			this.inTurn = false;
-			if (this.keyQueue.pending) this.schedule();
+			if (this.keyQueue.pending || this.renderDirty) this.schedule();
+			this.renderDirty = false;
 		}
 	}
 
@@ -259,10 +264,16 @@ export class ViewerRenderer {
 
 	/** Render and send the frame unless it equals the last one sent. */
 	private paint(): void {
-		const lines = this.pane.render(this.tui.terminal.columns);
+		this.painting = true;
+		let lines: string[];
+		try {
+			lines = this.pane.render(this.tui.terminal.columns);
+		} finally {
+			this.painting = false;
+		}
 		const last = this.lastSent;
 		if (last && last.length === lines.length && last.every((line, i) => line === lines[i])) return;
-		this.lastSent = lines;
 		this.o.send(lines);
+		this.lastSent = lines;
 	}
 }
