@@ -58,14 +58,14 @@ import { AgentTool } from "#src/tools/agent-tool";
 import { GetResultTool } from "#src/tools/get-result-tool";
 import { SteerTool } from "#src/tools/steer-tool";
 import { AgentWidget } from "#src/ui/agent-widget";
-import { getDisplayName } from "#src/ui/display";
 import { FleetList, type FleetUI } from "#src/ui/fleet-list";
 import {
   createNotificationRenderer,
   createUpdateRenderer,
   createWorkspaceNoticeRenderer,
 } from "#src/ui/notification-renderer";
-import { SessionNavigatorHandler } from "#src/ui/session-navigator";
+import { buildHeading } from "#src/ui/session-navigation";
+import { SessionNavigatorHandler, type TranscriptTheme } from "#src/ui/session-navigator";
 import { SubagentsSettingsHandler } from "#src/ui/subagents-settings";
 
 export default function (pi: ExtensionAPI) {
@@ -254,14 +254,15 @@ export default function (pi: ExtensionAPI) {
   const herdrSlot = new HerdrViewersSlot();
   observer.add(herdrSlot);
   const herdrCli = createExecHerdrCli((cmd, args, opts) => pi.exec(cmd, args, opts));
-  const herdr = new HerdrActivation(herdrSlot, (cwd, mode) =>
+  const herdr = new HerdrActivation(herdrSlot, (cwd, mode, theme) =>
     activateHerdrViewers({
       mode,
       env: process.env,
       cli: herdrCli,
       cwd,
       pid: process.pid,
-      titleOf: ({ type, description }) => `${getDisplayName(type, registry)} · ${description}`,
+      headingOf: (record) => buildHeading(record, registry),
+      theme,
     }),
   );
 
@@ -285,7 +286,7 @@ export default function (pi: ExtensionAPI) {
     fleet.setUICtx(ctx.ui as unknown as FleetUI);
   });
   // Detection runs `hc`/`herdr-app`, so it is not awaited: session start stays fast.
-  pi.on("session_start", (_event, ctx) => herdr.start({ cwd: ctx.cwd, mode: ctx.mode }));
+  pi.on("session_start", (_event, ctx) => herdr.start({ cwd: ctx.cwd, mode: ctx.mode, theme: ctx.ui.theme as TranscriptTheme }));
   pi.on("session_before_switch", () => lifecycle.handleSessionBeforeSwitch());
   pi.on("session_shutdown", () => lifecycle.handleSessionShutdown());
   // Registered after the lifecycle handler on purpose. Pi awaits an extension's

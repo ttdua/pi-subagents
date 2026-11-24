@@ -21,11 +21,11 @@ Outside the table below, the fork also changes repository files that upstream ke
 |---|---|---|
 | `package.json` | edit | Rename to private `@ttdua/pi-subagents`; drop `publishConfig`; replace `catalog:` versions with the exact versions from upstream `pnpm-workspace.yaml` at the tag; pin the `@earendil-works/*` dev dependencies to `1.5.0` to match the root; `lint` without markdown lint; `prepack` through `bun`. Declare `pi.subagents.agents` (`./agents`) and ship `agents` in `files`. Pin `@biomejs/biome` to `2.6.8`. `files` ships `docs/architecture/*.md` (not the pruned phase history); `lint:md` checks the scope set in `.rumdl.toml`. |
 | `scripts/verify-public-types.sh` | edit | Pack, install and type-check through `bun` instead of `pnpm`; the consumer probe imports the package name read from `package.json` (`@ttdua/pi-subagents`), not the upstream name. |
-| `tsconfig.json` | edit | Inline upstream's `tsconfig.base.json` compiler options, since the base file lives outside the subtree. |
+| `tsconfig.json` | edit | Inline upstream's `tsconfig.base.json` compiler options, since the base file lives outside the subtree; `allowImportingTsExtensions` lets `viewer.ts` import `./frame-protocol.ts`. |
 | `test/ui/widget-viewport.test.ts` | edit | `fakeTerminal` gains `setProgramStatus`, required by the `Terminal` type in pi-tui 1.5.0. Registry fixture holds `general`. |
-| `test/ui/session-navigator.test.ts` | edit | Bind top/bottom to `home`/`end` in the test keybindings; pi-tui 1.5.0 defaults them to `ctrl+home`/`ctrl+end`. Cover `openTranscript`. Labels show the recorded type. `paneOf` asserts the last `custom` call with `!` (biome `noUnsafeOptionalChaining`). Cover the `herdr` option: open in Herdr, fallback, unchanged command. |
+| `test/ui/session-navigator.test.ts` | edit | Bind top/bottom to `home`/`end` in the test keybindings; pi-tui 1.5.0 defaults them to `ctrl+home`/`ctrl+end`. Cover `openTranscript`. Labels show the recorded type. `paneOf` asserts the last `custom` call with `!` (biome `noUnsafeOptionalChaining`). Cover the `herdr` option: open in Herdr, fallback, unchanged command. Cover the `fill` layout, status label and `resync`. |
 | `src/ui/session-navigation.ts` | edit | Add `navigationEntryFor`, the per-record live/snapshot entry, shared by `listNavigableAgents` and the fleet list. |
-| `src/ui/session-navigator.ts` | edit | Add `openTranscript`, the source/mount step of the session pane, shared by the picker handler and the fleet list. Rename the local `fit` helper to `fitToWidth` (biome `noFocusedTests` false positive). `SessionNavigatorParams.herdr`: a pick opens in a Herdr viewer first, then falls back to the pane. |
+| `src/ui/session-navigator.ts` | edit | Add `openTranscript`, the source/mount step of the session pane, shared by the picker handler and the fleet list. Rename the local `fit` helper to `fitToWidth` (biome `noFocusedTests` false positive). `SessionNavigatorParams.herdr`: a pick opens in a Herdr viewer first, then falls back to the pane. `TranscriptPaneOptions.layout`/`status` and `TranscriptPane.resync`: a `fill` layout that takes every terminal row and never closes itself, for the Herdr viewer. |
 | `test/ui/session-navigation.test.ts` | edit | Cover `navigationEntryFor`. Legacy types shown as recorded, with `general` present, missing and disabled. |
 | `src/settings.ts` | edit | Add the `fleetView` setting (default on, boolean-only load, always in the snapshot, `toggleFleetView`) for the below-editor fleet list. |
 | `src/ui/subagents-settings.ts` | edit | Add the `Fleet view` toggle row after the mid-run updates row. |
@@ -251,27 +251,44 @@ Outside the table below, the fork also changes repository files that upstream ke
 | `test/herdr/cli.test.ts` | add | Tests for the exec port result mapping and `HerdrQueue` ordering, failure and close. |
 | `test/herdr/detect.test.ts` | add | Tests for Herdr detection scenarios and malformed output. |
 | `test/herdr/fake-cli.ts` | add | `FakeHerdrCli` test double recording calls and scripting replies. |
-| `src/herdr/viewer.ts` | add | Standalone read-only transcript viewer Herdr runs per subagent (node: built-ins only). |
-| `test/herdr/viewer.test.ts` | add | Tests for viewer argument parsing, JSONL line splitting and entry rendering. |
-| `test/herdr/viewer.integration.test.ts` | add | Runs the real viewer file under the runtime: follow, rewrite, status, input discard, parent exit. |
+| `src/herdr/viewer.ts` | add | Standalone read-only transcript viewer Herdr runs per subagent (node: built-ins only). Rewritten (herdr-viewer-pi-render) as a frame painter over a Unix socket. |
+| `src/herdr/frame-protocol.ts` | add | Viewer ↔ Pi NDJSON message types and parsers, input framer and frame sanitizer (node: built-ins only). |
+| `test/herdr/frame-protocol.test.ts` | add | Tests for frame round-trips, bounds, split chunks, input framing and sanitizing. |
+| `test/herdr/viewer.test.ts` | add | Tests for viewer argument parsing, frame painting and idempotent exit. Rewritten for herdr-viewer-pi-render. |
+| `test/herdr/viewer.integration.test.ts` | add | Runs the real viewer file under the runtime against a loopback socket: hello, frames, input, wheel, restore on close/error/overflow/SIGTERM, parent exit. Rewritten for herdr-viewer-pi-render. |
 | `src/herdr/column.ts` | add | `ViewerColumn`: viewer placement in a right-hand column with waiting FIFO, via `herdr-app`. |
 | `test/herdr/column.test.ts` | add | Tests for column placement, focus restore, overflow, park and peek retry. |
 | `test/herdr/fake-herdr-app.ts` | add | `FakeHerdrCli` preset following a mutable pane model of `herdr-app`. |
 | `src/herdr/runtime.ts` | add | `viewerRuntime`: picks the program that runs `viewer.ts` directly (Bun, Node ≥ 22.18, else `node`). |
-| `src/herdr/status-files.ts` | add | `ViewerStatusFiles`: atomic per-viewer running/done status files under the tmp dir. |
-| `src/herdr/viewer-process.ts` | add | `ViewerProcesses`: start, liveness and end of viewer terminals through `hc`. |
+| `src/herdr/viewer-process.ts` | add | `ViewerProcesses`: start, liveness and end of viewer terminals through `hc`; the viewer gets `--socket`/`--key` instead of a file and status path. |
 | `src/herdr/viewer-registry.ts` | add | `ViewerRegistry`: known viewers by key and by transcript path. |
 | `src/herdr/output-file-poller.ts` | add | `OutputFilePoller`: reports when a record first has an `outputFile`. |
-| `src/herdr/herdr-observer.ts` | add | `HerdrViewers` lifecycle observer (sole queue owner) and `HerdrViewersSlot`. |
+| `src/herdr/herdr-observer.ts` | add | `HerdrViewers` lifecycle observer (sole queue owner) and `HerdrViewersSlot`; registers frame targets instead of writing status files. |
 | `test/herdr/runtime.test.ts` | add | Tests for viewer runtime selection across Bun, Node versions and single binaries. |
-| `test/herdr/status-files.test.ts` | add | Tests for atomic status writes and status dir removal. |
 | `test/herdr/viewer-process.test.ts` | add | Tests for `hc run` argv, name sanitizing, retry, liveness and end order. |
 | `test/herdr/output-file-poller.test.ts` | add | Tests for output file polling, unwatch and timer lifetime. |
 | `test/herdr/herdr-observer.test.ts` | add | Scenario tests for viewer lifecycle, sessions `open`, ordering, failures and dispose. |
-| `src/herdr/activate.ts` | add | `activateHerdrViewers` and `HerdrActivation`: build the Herdr observer after detection and own its per-session lifetime. |
+| `src/herdr/activate.ts` | add | `activateHerdrViewers` and `HerdrActivation`: build the Herdr observer and its `FrameServer` after detection and own its per-session lifetime; the session theme flows through. |
 | `test/herdr/activate.test.ts` | add | Tests for activation, viewer path and the session generation guard. |
+| `src/index.ts` (Herdr viewers) | edit | Pass the session theme and `buildHeading` to the Herdr activation. |
+| `src/ui/session-navigation.ts` (heading) | edit | Export `buildHeading` for the Herdr viewers. |
+| `test/composition-root.test.ts` (Herdr viewers) | edit | Cover the navigator heading and theme reaching the Herdr activation. |
 | `docs/decisions/0015-subagent-viewers-in-a-herdr-column.md` | seam | ADR for the Herdr viewer column; `/subagents:sessions` may open a Herdr viewer, the fleet list is unchanged. |
 | `docs/decisions/0013-fleet-list-opens-the-session-pane.md` | edit | Status line points to ADR 0015. |
 | `README.md` (Herdr) | edit | `Herdr` section: the viewer column, detection rule, `/subagents:sessions` inside Herdr and runtime limits. |
 | `CHANGELOG.md` (Herdr) | edit | Unreleased entry for the Herdr viewer column. |
 | `docs/comparison-with-upstream.md` (Herdr) | edit | Herdr viewer column listed among fork features. |
+| `src/ui/transcript-content.ts` | edit | Add `resync()`: reset settled blocks, pending tools and the in-flight message, then consume the source's current history. |
+| `test/ui/transcript-content.test.ts` | edit | Cover `resync` dropping a stale in-flight message. |
+| `src/herdr/viewer-source.ts` | add | Followed session file and live/file switchable transcript source for Herdr viewers. |
+| `src/herdr/deferred-source.ts` | add | Transcript source wrapper holding events until a frame turn, with overflow resync. |
+| `test/herdr/viewer-source.test.ts` | add | Tests for the followed-file and switchable sources. |
+| `test/herdr/deferred-source.test.ts` | add | Tests for the deferred source. |
+| `src/herdr/headless-tui.ts` | add | Terminal-less TUI surface for rendering the transcript pane into frames. |
+| `src/herdr/viewer-renderer.ts` | add | Frame-scheduled renderer producing Herdr viewer frames from the transcript pane. |
+| `test/herdr/viewer-renderer.test.ts` | add | Tests for the viewer renderer. |
+| `src/herdr/frame-server.ts` | add | Unix-socket frame server connecting Herdr viewer processes to their renderers. |
+| `test/herdr/frame-server.test.ts` | add | Tests for the frame server over real sockets. |
+| `src/ui/session-navigation.ts` (in-flight) | edit | Optional `NavigableSubagent.inFlightMessage()` so a Herdr viewer attached mid-stream shows the partial assistant message. |
+| `src/lifecycle/subagent.ts` (in-flight) | edit | `inFlightMessage()` delegates to the session's streaming message. |
+| `src/lifecycle/subagent-session.ts` (in-flight) | edit | `inFlightMessage` reads the wrapped session's `state.streamingMessage`. |

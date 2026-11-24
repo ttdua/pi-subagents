@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -7,9 +7,9 @@ import { type HerdrCli, type HerdrCommand, HerdrQueue, type HerdrResult } from "
 import { ViewerColumn } from "#src/herdr/column";
 import { DISPOSE_CAP_MS, HerdrViewers, HerdrViewersSlot } from "#src/herdr/herdr-observer";
 import { OutputFilePoller } from "#src/herdr/output-file-poller";
-import { ViewerStatusFiles } from "#src/herdr/status-files";
 import { ViewerProcesses } from "#src/herdr/viewer-process";
 import { ViewerRegistry } from "#src/herdr/viewer-registry";
+import type { ViewerTarget } from "#src/herdr/viewer-source";
 import type { Subagent } from "#src/lifecycle/subagent";
 import type { SubagentStatus } from "#src/lifecycle/subagent-state";
 import type { NavigableSubagent, NavigationEntry } from "#src/ui/session-navigation";
@@ -69,8 +69,12 @@ class GatedCli implements HerdrCli {
 		};
 	}
 
+	/** Receives `hc run` / `hc rm` the moment the CLI is called, before it answers, to order them against frame calls. */
+	onCall: ((entry: string) => void) | undefined;
+
 	async run(command: HerdrCommand, args: readonly string[]): Promise<HerdrResult> {
 		const sub = command === "herdr-app" && args[0] === "do" ? args[1] : args[0];
+		if (command === "hc" && (sub === "run" || sub === "rm")) this.onCall?.(`hc ${sub}`);
 		const result = await this.inner.run(command, args);
 		const hold = this.holds.get(`${command} ${sub}`);
 		if (hold !== undefined) await hold;
@@ -78,14 +82,28 @@ class GatedCli implements HerdrCli {
 	}
 }
 
-/** Status files whose writes can be made to throw. */
-class FlakyStatusFiles extends ViewerStatusFiles {
-	failWrites = false;
-
-	override write(key: string, s: Parameters<ViewerStatusFiles["write"]>[1]): void {
-		if (this.failWrites) throw new Error("disk full");
-		super.write(key, s);
-	}
+/** Records frame-server calls; `socket` undefined simulates a server that cannot listen. */
+function fakeFrames() {
+	const log: string[] = [];
+	const registered: Array<[string, ViewerTarget]> = [];
+	const state: { socket: string | undefined } = { socket: "/tmp/pi/99/s.sock" };
+	const frames = {
+		socketPath: async () => state.socket,
+		register: (key: string, target: ViewerTarget) => {
+			log.push(`register ${key}`);
+			registered.push([key, target]);
+		},
+		refresh: (key: string) => {
+			log.push(`refresh ${key}`);
+		},
+		unregister: (key: string) => {
+			log.push(`unregister ${key}`);
+		},
+		close: async () => {
+			log.push("close");
+		},
+	};
+	return { frames, log, registered, state };
 }
 
 const roots: string[] = [];
@@ -120,7 +138,8 @@ function setup(opts: { disposeSleep?: (ms: number) => Promise<void> } = {}) {
 	const queue = new HerdrQueue();
 	const column = new ViewerColumn(CTX, cli, async () => {});
 	const registry = new ViewerRegistry();
-	const statusFiles = new FlakyStatusFiles(root, 99);
+	const fake = fakeFrames();
+	cli.onCall = (entry) => fake.log.push(entry);
 	const missing = new Set<string>();
 	let pollFn: (() => void) | undefined;
 	const timers = {
@@ -135,12 +154,12 @@ function setup(opts: { disposeSleep?: (ms: number) => Promise<void> } = {}) {
 	const viewers = new HerdrViewers({
 		column,
 		processes: new ViewerProcesses(cli, { runtime: ["/rt/bun"], viewerPath: "/v.ts", pid: 99, parentTerminal: "t3s" }),
-		statusFiles,
+		frames: fake.frames,
 		registry,
 		createPoller: (onReady) => new OutputFilePoller(onReady, timers),
 		queue,
 		cwd: "/work",
-		titleOf: ({ type, description }) => `${type} · ${description}`,
+		headingOf: (r) => ({ name: "Explore", modeLabel: undefined, description: r.description }),
 		fileExists: (p) => !missing.has(p),
 		sleep: opts.disposeSleep ?? never,
 	});
@@ -150,7 +169,6 @@ function setup(opts: { disposeSleep?: (ms: number) => Promise<void> } = {}) {
 	const calls = () => app.cli.calls.map((c) => [c.command, ...c.args].join(" "));
 	const runs = () => app.cli.calls.filter((c) => c.command === "hc" && c.args[0] === "run");
 	const doCalls = (name: string) => calls().filter((c) => c.startsWith(`herdr-app do ${name} `));
-	const status = (key: string) => JSON.parse(readFileSync(statusFiles.pathFor(key), "utf8"));
 	const viewerOf = (key: string) => registry.byKey(key)?.viewer;
 
 	/** Start hook, file appears, poll fires, queue drains. */
@@ -183,14 +201,13 @@ function setup(opts: { disposeSleep?: (ms: number) => Promise<void> } = {}) {
 		root,
 		column,
 		registry,
-		statusFiles,
+		frames: fake,
 		viewers,
 		flush,
 		tick,
 		calls,
 		runs,
 		doCalls,
-		status,
 		viewerOf,
 		startChild,
 		finishChild,
@@ -207,9 +224,10 @@ describe("HerdrViewers: viewer per child", () => {
 		expect(h.runs()).toHaveLength(1);
 		const args = h.runs()[0]?.args ?? [];
 		expect(args.slice(0, 4)).toEqual(["run", "--bg", "--json", "--name"]);
-		expect(args).toContain("/s/a1b2c3d4.jsonl");
-		expect(args[args.indexOf("--title") + 1]).toBe("explore · task a1b2c3d4");
-		expect(h.status("a1b2c3d4")).toEqual({ state: "running" });
+		expect(args).toContain("/tmp/pi/99/s.sock");
+		expect(args[args.indexOf("--key") + 1]).toBe("a1b2c3d4");
+		expect(h.frames.registered[0]?.[0]).toBe("a1b2c3d4");
+		expect(h.frames.registered[0]?.[1]).toMatchObject({ kind: "record", heading: { description: "task a1b2c3d4" } });
 		expect(h.doCalls("terminal.keep")).toEqual(["herdr-app do terminal.keep --terminal t10 --place right"]);
 	});
 
@@ -265,7 +283,6 @@ describe("HerdrViewers: viewer per child", () => {
 		await h.finishChild(r);
 		expect(h.doCalls("terminal.park")).toHaveLength(1);
 		await h.resumeChild(r);
-		expect(h.status("back")).toEqual({ state: "running" });
 		expect(h.doCalls("terminal.keep")).toHaveLength(2);
 		expect(h.column.isPlaced(h.viewerOf("back") ?? { terminal: "" })).toBe(true);
 	});
@@ -292,8 +309,13 @@ describe("HerdrViewers: finished children", () => {
 		const h = setup();
 		const r = rec("fin");
 		await h.startChild(r);
+		const refreshes = () => h.frames.log.filter((e) => e === "refresh fin").length;
+		expect(refreshes()).toBe(1);
 		await h.finishChild(r, finalStatus);
-		expect(h.status("fin")).toEqual({ state: "done", status: finalStatus });
+		expect(refreshes()).toBe(2);
+		const target = h.frames.registered[0]?.[1];
+		expect(target?.kind === "record" && target.record).toBe(r);
+		expect(r.status).toBe(finalStatus);
 		expect(h.doCalls("terminal.park")).toEqual(["herdr-app do terminal.park --terminal t10"]);
 		expect(h.calls()).not.toContain("hc kill t10");
 	});
@@ -304,8 +326,13 @@ describe("HerdrViewers: finished children", () => {
 		for (const r of records) await h.startChild(r);
 		const fifth = records[4] as StubRecord;
 		expect(h.column.isWaiting(h.viewerOf("e") ?? { terminal: "" })).toBe(true);
+		const refreshes = () => h.frames.log.filter((e) => e === "refresh e").length;
+		const before = refreshes();
 		await h.finishChild(fifth);
-		expect(h.status("e")).toEqual({ state: "done", status: "completed" });
+		expect(refreshes()).toBe(before + 1);
+		const target = h.frames.registered.find(([k]) => k === "e")?.[1];
+		expect(target?.kind === "record" && target.record).toBe(fifth);
+		expect(fifth.status).toBe("completed");
 		expect(h.calls().filter((c) => c.includes("--terminal t14"))).toEqual([]);
 		expect(h.column.isWaiting(h.viewerOf("e") ?? { terminal: "" })).toBe(false);
 	});
@@ -316,10 +343,104 @@ describe("HerdrViewers: finished children", () => {
 		await h.startChild(first);
 		await h.finishChild(first);
 		for (const id of ["b", "c", "d", "e"]) await h.startChild(rec(id));
+		const refreshes = () => h.frames.log.filter((e) => e === "refresh first").length;
+		const before = refreshes();
 		await h.resumeChild(first);
-		expect(h.status("first")).toEqual({ state: "running" });
+		expect(refreshes()).toBe(before + 1);
+		expect(h.frames.registered.filter(([k]) => k === "first")).toHaveLength(1);
 		expect(h.column.isWaiting(h.viewerOf("first") ?? { terminal: "" })).toBe(true);
 		expect(h.doCalls("terminal.keep").filter((c) => c.includes("t10 "))).toHaveLength(1);
+	});
+});
+
+describe("HerdrViewers: frames", () => {
+	it("registers the target before the viewer starts", async () => {
+		const h = setup();
+		const r = rec("ord");
+		await h.startChild(r);
+		const log = h.frames.log;
+		expect(log.indexOf("register ord")).toBeGreaterThanOrEqual(0);
+		expect(log.indexOf("register ord")).toBeLessThan(log.indexOf("hc run"));
+		const [key, target] = h.frames.registered[0] ?? [];
+		expect(key).toBe("ord");
+		expect(target).toEqual({
+			kind: "record",
+			record: r,
+			heading: { name: "Explore", modeLabel: undefined, description: "task ord" },
+		});
+		expect(target?.kind === "record" && target.record).toBe(r);
+	});
+
+	it("refreshes the frame before queued placement", async () => {
+		const h = setup();
+		const r = rec("early");
+		await h.startChild(r);
+		const release = h.cli.hold("herdr-app terminal.keep");
+		r.outputFile = "/s/early.jsonl";
+		h.viewers.onSubagentRunFinished(sub(r), "initial");
+		await h.flush();
+		r.status = "running";
+		h.viewers.onSubagentRunStarted(sub(r), "resume");
+		await vi.waitFor(() => expect(h.doCalls("terminal.keep")).toHaveLength(2));
+		const before = h.frames.log.filter((e) => e === "refresh early").length;
+		r.status = "completed";
+		h.viewers.onSubagentRunFinished(sub(r), "resume");
+		expect(h.frames.log.filter((e) => e === "refresh early")).toHaveLength(before + 1);
+		release();
+		await h.flush();
+		expect(h.doCalls("terminal.park")).toHaveLength(2);
+	});
+
+	it("no viewer without a socket", async () => {
+		const h = setup();
+		h.frames.state.socket = undefined;
+		await h.startChild(rec("nosock"));
+		expect(h.runs()).toHaveLength(0);
+		expect(h.frames.registered).toEqual([]);
+	});
+
+	it("unregisters the target when the viewer start fails", async () => {
+		const h = setup();
+		h.runFailsFor.add("bad");
+		await h.startChild(rec("bad"));
+		expect(h.frames.log.filter((e) => e.endsWith(" bad"))).toEqual(["refresh bad", "register bad", "unregister bad"]);
+	});
+
+	it("unregisters the target when the viewer start rejects", async () => {
+		const h = setup();
+		h.cli.run = async () => {
+			throw new Error("exec down");
+		};
+		const r = rec("rej", { outputFile: "/s/rej.jsonl" });
+		h.viewers.onSubagentRunStarted(sub(r), "initial");
+		await h.flush();
+		h.tick();
+		await h.flush();
+		expect(h.frames.log).toContain("unregister rej");
+	});
+
+	it("unregisters a viewer whose terminal is gone", async () => {
+		const h = setup();
+		const r = rec("gone2");
+		await h.startChild(r);
+		await h.finishChild(r);
+		h.live.delete("t10");
+		await h.resumeChild(r);
+		expect(h.frames.log).toContain("unregister gone2");
+	});
+
+	it("closes the frame server after the terminals end", async () => {
+		const h = setup();
+		await h.startChild(rec("cl"));
+		const release = h.cli.hold("hc rm");
+		const disposed = h.viewers.dispose();
+		await vi.waitFor(() => expect(h.frames.log).toContain("hc rm"));
+		await h.flush();
+		expect(h.frames.log).not.toContain("close");
+		release();
+		await disposed;
+		expect(h.frames.log.indexOf("close")).toBeGreaterThan(h.frames.log.indexOf("hc rm"));
+		expect(h.frames.log.at(-1)).toBe("close");
 	});
 });
 
@@ -358,20 +479,24 @@ describe("HerdrViewers.open", () => {
 		const key = `f-${createHash("sha1").update(file).digest("hex").slice(0, 10)}`;
 		expect(await h.viewers.open(snapshotEntry(file))).toBe(true);
 		const args = h.runs()[0]?.args ?? [];
-		expect(args[args.indexOf("--title") + 1]).toBe("Explore · old task");
-		expect(args[args.indexOf("--status") + 1]).toMatch(new RegExp(`^${h.root}/99-[A-Za-z0-9]{6}/${key}\\.json$`));
+		expect(args[args.indexOf("--key") + 1]).toBe(key);
+		expect(h.frames.registered).toEqual([
+			[key, { kind: "file", outputFile: file, heading: { name: "Explore", modeLabel: undefined, description: "old task" } }],
+		]);
 		expect(args[args.indexOf("--name") + 1]).toBe(`explore-${key.slice(0, 6)}`);
 		expect(h.doCalls("terminal.keep")).toEqual([]);
 		expect(h.doCalls("terminal.peek")).toEqual(["herdr-app do terminal.peek --terminal t10"]);
 		expect(h.registry.byKey(key)?.terminal).toBe("t10");
-		expect(h.status(key)).toEqual({ state: "done" });
 	});
 
 	it("starts a finished live record's viewer with its done status", async () => {
 		const h = setup();
 		const r = rec("old", { status: "error", outputFile: "/s/old.jsonl" });
 		expect(await h.viewers.open(liveEntry(r))).toBe(true);
-		expect(h.status("old")).toEqual({ state: "done", status: "error" });
+		const target = h.frames.registered[0]?.[1];
+		expect(h.frames.registered[0]?.[0]).toBe("old");
+		expect(target?.kind === "record" && target.record).toBe(r);
+		expect(target?.kind === "record" && target.record.status).toBe("error");
 		expect(h.doCalls("terminal.peek")).toHaveLength(1);
 	});
 
@@ -450,7 +575,7 @@ describe("HerdrViewers: ordering and failure isolation", () => {
 		expect(all.indexOf("herdr-app do pane.focus --pane p10")).toBeGreaterThan(
 			all.indexOf("herdr-app do terminal.keep --terminal t10 --place right"),
 		);
-		expect(all.findIndex((c) => c.includes("run --bg") && c.includes("/s/b.jsonl"))).toBeGreaterThan(
+		expect(all.findIndex((c) => c.includes("run --bg") && c.includes("--key b"))).toBeGreaterThan(
 			all.indexOf("herdr-app do terminal.keep --terminal t10 --place right"),
 		);
 	});
@@ -469,18 +594,20 @@ describe("HerdrViewers: ordering and failure isolation", () => {
 		expect(h.doCalls("terminal.keep")).toEqual([]);
 	});
 
-	it("hides a finished child even when its status write fails", async () => {
+	it("hides a finished child even when its frame refresh fails", async () => {
 		const h = setup();
 		const r = rec("nodisk");
 		await h.startChild(r);
-		h.statusFiles.failWrites = true;
+		h.frames.frames.refresh = () => {
+			throw new Error("boom");
+		};
 		await h.finishChild(r);
 		expect(h.doCalls("terminal.park")).toEqual(["herdr-app do terminal.park --terminal t10"]);
 	});
 
 	it("hc fails mid-session", async () => {
 		const h = setup();
-		h.runFailsFor.add("/s/bad.jsonl");
+		h.runFailsFor.add("bad");
 		await h.startChild(rec("bad"));
 		await h.startChild(rec("good"));
 		expect(h.registry.byKey("bad")).toBeUndefined();
@@ -504,7 +631,7 @@ describe("HerdrViewers.dispose", () => {
 			expect(all.indexOf(`hc kill ${t}`)).toBeGreaterThan(keepOff);
 			expect(all.indexOf(`hc rm ${t}`)).toBeGreaterThan(all.indexOf(`hc kill ${t}`));
 		}
-		expect(existsSync(join(h.root, "99"))).toBe(false);
+		expect(h.frames.log).toContain("close");
 	});
 
 	it("Reload", async () => {
@@ -534,7 +661,7 @@ describe("HerdrViewers.dispose", () => {
 			expect(h.calls()).toContain("hc kill t10");
 			expect(h.calls()).toContain("hc kill t11");
 		});
-		expect(existsSync(join(h.root, "99"))).toBe(false);
+		expect(h.frames.log).toContain("close");
 	});
 
 	it("drops queued jobs after dispose", async () => {
@@ -583,6 +710,22 @@ describe("HerdrViewers.dispose", () => {
 		expect(h.doCalls("terminal.keep")).toEqual([]);
 		expect(h.registry.byKey("slow")).toBeUndefined();
 	});
+
+	it("skips the unnamed retry when disposed during the named start", async () => {
+		const h = setup();
+		h.runFailsFor.add("held");
+		const release = h.cli.hold("hc run");
+		const r = rec("held", { outputFile: "/s/held.jsonl" });
+		h.viewers.onSubagentRunStarted(sub(r), "initial");
+		await h.flush();
+		h.tick();
+		await vi.waitFor(() => expect(h.runs()).toHaveLength(1));
+		const disposed = h.viewers.dispose();
+		release();
+		await disposed;
+		await new Promise((resolve) => setTimeout(resolve, 20));
+		expect(h.runs()).toHaveLength(1);
+	});
 });
 
 describe("HerdrViewers: jobs in flight when dispose starts", () => {
@@ -600,7 +743,7 @@ describe("HerdrViewers: jobs in flight when dispose starts", () => {
 		release();
 		await h.flush();
 		expect(h.doCalls("terminal.keep")).toHaveLength(keeps);
-		expect(existsSync(join(h.root, "99"))).toBe(false);
+		expect(h.frames.log).toContain("close");
 	});
 
 	it("a resume of a closed viewer answering after dispose does not hide or restart", async () => {
@@ -632,7 +775,7 @@ describe("HerdrViewers: jobs in flight when dispose starts", () => {
 		release();
 		expect(await opened).toBe(false);
 		expect(h.doCalls("terminal.peek")).toEqual([]);
-		expect(existsSync(join(h.root, "99"))).toBe(false);
+		expect(h.frames.log).toContain("close");
 	});
 
 	it("an open whose new viewer is being placed at dispose ends it and does not peek", async () => {

@@ -9,10 +9,8 @@ import { asRecord, asString, parseJson } from "#src/herdr/json";
 export interface ViewerLaunch {
 	key: string;
 	agentType: string | undefined;
-	title: string;
-	outputFile: string;
 	cwd: string;
-	statusFile: string;
+	socket: string;
 }
 
 export interface ViewerProcessOptions {
@@ -39,11 +37,14 @@ export class ViewerProcesses {
 		private readonly opts: ViewerProcessOptions,
 	) {}
 
-	/** The new terminal's address, or `undefined` when `hc run` fails twice (once with, once without a name). */
-	async start(l: ViewerLaunch): Promise<string | undefined> {
+	/**
+	 * The new terminal's address, or `undefined` when `hc run` fails twice (once with, once without a name).
+	 * The unnamed retry runs only while `shouldContinue()` holds (e.g. the caller was not disposed).
+	 */
+	async start(l: ViewerLaunch, shouldContinue: () => boolean = () => true): Promise<string | undefined> {
 		const program = this.program(l);
 		const named = await this.run(["--name", viewerName(l.agentType, l.key), "--cwd", l.cwd], program);
-		if (named !== undefined) return named;
+		if (named !== undefined || !shouldContinue()) return named;
 		return this.run(["--cwd", l.cwd], program);
 	}
 
@@ -66,16 +67,14 @@ export class ViewerProcesses {
 		return [
 			...runtime,
 			viewerPath,
-			"--file",
-			l.outputFile,
-			"--status",
-			l.statusFile,
+			"--socket",
+			l.socket,
+			"--key",
+			l.key,
 			"--pid",
 			String(pid),
 			"--parent-terminal",
 			parentTerminal,
-			"--title",
-			l.title,
 		];
 	}
 

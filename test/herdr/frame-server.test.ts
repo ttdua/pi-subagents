@@ -1,0 +1,452 @@
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, statSync, symlinkSync } from "node:fs";
+import { createConnection, type Socket } from "node:net";
+import { tmpdir } from "node:os";
+import { dirname, join } from "node:path";
+import { getMarkdownTheme, initTheme, type ToolDefinition } from "@earendil-works/pi-coding-agent";
+import { KeybindingsManager, TUI_KEYBINDINGS } from "@earendil-works/pi-tui";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import { debugLog } from "#src/debug";
+import { encodeMessage, MessageSplitter, type PiMessage, type ViewerMessage } from "#src/herdr/frame-protocol";
+import { FrameServer } from "#src/herdr/frame-server";
+import { ViewerRenderer } from "#src/herdr/viewer-renderer";
+import type { ViewerTarget } from "#src/herdr/viewer-source";
+import type { SessionMessage } from "#src/types";
+import type { EntryHeading, NavigableSubagent } from "#src/ui/session-navigation";
+import { makeNavigable } from "#test/helpers/make-navigable";
+
+vi.mock("#src/debug", async (importOriginal) => ({ ...(await importOriginal<typeof import("#src/debug")>()), debugLog: vi.fn() }));
+
+beforeAll(() => initTheme(undefined, false));
+
+const heading: EntryHeading = { name: "Explore", modeLabel: undefined, description: "d" };
+const targetOf = (record: NavigableSubagent = makeNavigable({})): ViewerTarget => ({ kind: "record", record, heading });
+
+interface FakeRenderer {
+	resize: ReturnType<typeof vi.fn>;
+	input: ReturnType<typeof vi.fn>;
+	wheel: ReturnType<typeof vi.fn>;
+	refresh: ReturnType<typeof vi.fn>;
+	dispose: ReturnType<typeof vi.fn>;
+	send: (lines: string[]) => void;
+}
+
+const fakes: FakeRenderer[] = [];
+const fakeFactory = (_t: ViewerTarget, send: (lines: string[]) => void): ViewerRenderer => {
+	const r: FakeRenderer = { resize: vi.fn(), input: vi.fn(), wheel: vi.fn(), refresh: vi.fn(), dispose: vi.fn(), send };
+	fakes.push(r);
+	return r as unknown as ViewerRenderer;
+};
+
+const roots: string[] = [];
+const servers: FrameServer[] = [];
+const clients: Socket[] = [];
+
+function makeServer(createRenderer = fakeFactory, root?: string): FrameServer {
+	const dir = root ?? mkdtempSync(join(tmpdir(), "hf-"));
+	roots.push(dir);
+	const server = new FrameServer({ root: dir, pid: process.pid, createRenderer });
+	servers.push(server);
+	return server;
+}
+
+class Client {
+	readonly messages: PiMessage[] = [];
+	closed = false;
+	private readonly splitter = new MessageSplitter(1 << 24);
+	constructor(readonly socket: Socket) {
+		socket.on("data", (c) => {
+			for (const l of this.splitter.push(c).lines) this.messages.push(JSON.parse(l) as PiMessage);
+		});
+		socket.on("close", () => {
+			this.closed = true;
+		});
+		socket.on("error", () => {});
+	}
+	send(m: ViewerMessage | { type: string; [k: string]: unknown }): void {
+		this.socket.write(encodeMessage(m as ViewerMessage));
+	}
+}
+
+async function connect(path: string): Promise<Client> {
+	const socket = createConnection(path);
+	clients.push(socket);
+	await new Promise<void>((resolve, reject) => socket.once("connect", resolve).once("error", reject));
+	return new Client(socket);
+}
+
+const until = async (cond: () => boolean, ms = 3000): Promise<void> => {
+	const end = Date.now() + ms;
+	while (!cond()) {
+		if (Date.now() > end) throw new Error("timeout");
+		await new Promise((r) => setTimeout(r, 5));
+	}
+};
+/** Server-side sockets, captured through the private net server (test-only). */
+function serverSockets(server: FrameServer): Socket[] {
+	const sockets: Socket[] = [];
+	(server as unknown as { server: { on(e: string, f: (s: Socket) => void): void } }).server.on("connection", (s) => sockets.push(s));
+	return sockets;
+}
+const connectionCount = (server: FrameServer) => (server as unknown as { all: Set<unknown> }).all.size;
+const settle = () => new Promise((r) => setTimeout(r, 60));
+
+async function hello(server: FrameServer, key: string, cols = 80, rows = 24): Promise<Client> {
+	const path = await server.socketPath();
+	const client = await connect(path as string);
+	client.send({ type: "hello", key, cols, rows });
+	return client;
+}
+
+afterEach(async () => {
+	for (const c of clients.splice(0)) c.destroy();
+	for (const s of servers.splice(0)) await s.close();
+	for (const r of roots.splice(0)) rmSync(r, { recursive: true, force: true });
+	fakes.length = 0;
+});
+
+describe("FrameServer", () => {
+	it("opens no socket before first use", () => {
+		const root = mkdtempSync(join(tmpdir(), "hf-"));
+		const server = makeServer(fakeFactory, root);
+		server.register("a", targetOf());
+		expect(existsSync(root) && statSync(root).isDirectory()).toBe(true);
+		expect(readdirSync(root)).toEqual([]);
+	});
+
+	it("creates a 0700 directory", async () => {
+		const server = makeServer();
+		const path = await server.socketPath();
+		expect(statSync(dirname(path as string)).mode & 0o777).toBe(0o700);
+	});
+
+	it("shares one listen between concurrent callers", async () => {
+		const server = makeServer();
+		const [a, b] = await Promise.all([server.socketPath(), server.socketPath()]);
+		expect(a).toBe(b);
+	});
+
+	it("renders for a registered hello", async () => {
+		const server = makeServer();
+		server.register("a", targetOf());
+		const client = await hello(server, "a", 90, 30);
+		await until(() => fakes.length === 1 && fakes[0].resize.mock.calls.length === 1);
+		expect(fakes[0].resize).toHaveBeenCalledWith(90, 30);
+		fakes[0].send(["a"]);
+		await until(() => client.messages.length === 1);
+		expect(client.messages[0]).toEqual({ type: "frame", lines: ["a"] });
+	});
+
+	it("closes an unknown key", async () => {
+		const server = makeServer();
+		const client = await hello(server, "nope");
+		await until(() => client.closed);
+		expect(fakes).toHaveLength(0);
+	});
+
+	it("routes resize, input and wheel", async () => {
+		const server = makeServer();
+		server.register("a", targetOf());
+		const client = await hello(server, "a");
+		await until(() => fakes.length === 1);
+		client.send({ type: "resize", cols: 100, rows: 40 });
+		client.send({ type: "input", data: "x" });
+		client.send({ type: "wheel", delta: -3 });
+		await until(() => fakes[0].wheel.mock.calls.length === 1);
+		expect(fakes[0].resize).toHaveBeenLastCalledWith(100, 40);
+		expect(fakes[0].input).toHaveBeenCalledWith("x");
+		expect(fakes[0].wheel).toHaveBeenCalledWith(-3);
+	});
+
+	it("a newer connection replaces the older", async () => {
+		const server = makeServer();
+		server.register("a", targetOf());
+		const first = await hello(server, "a");
+		await until(() => fakes.length === 1);
+		const second = await hello(server, "a");
+		await until(() => fakes.length === 2);
+		expect(fakes[0].dispose).toHaveBeenCalledTimes(1);
+		await until(() => first.closed);
+		fakes[1].send(["new"]);
+		await until(() => second.messages.length === 1);
+		expect(fakes[1].dispose).not.toHaveBeenCalled();
+	});
+
+	it("keeps one pending frame for a blocked reader", async () => {
+		const server = makeServer();
+		server.register("a", targetOf());
+		await server.socketPath();
+		const sockets = serverSockets(server);
+		const client = await hello(server, "a");
+		await until(() => fakes.length === 1);
+		const [serverSide] = sockets;
+		client.socket.pause();
+		const big = "x".repeat(256 * 1024);
+		const frameBytes = big.length;
+		let peak = 0;
+		for (let i = 0; i < 1000; i++) {
+			fakes[0].send([big, String(i)]);
+			peak = Math.max(peak, serverSide.writableLength);
+		}
+		expect(peak).toBeLessThan(2 * frameBytes);
+		client.socket.resume();
+		await until(() => (client.messages.at(-1)?.lines[1] ?? "") === "999");
+		expect(client.messages.length).toBeLessThan(10);
+	});
+
+	it("closes only the connection with an oversized line", async () => {
+		const server = makeServer();
+		server.register("a", targetOf());
+		server.register("b", targetOf());
+		const a = await hello(server, "a");
+		const b = await hello(server, "b");
+		await until(() => fakes.length === 2);
+		a.socket.write(`${JSON.stringify({ type: "input", data: "x" })}${" ".repeat(70000)}\n`);
+		await until(() => a.closed);
+		fakes[1].send(["still"]);
+		await until(() => b.messages.length === 1);
+		expect(b.closed).toBe(false);
+	});
+
+	it("closes only the connection with an invalid message", async () => {
+		const server = makeServer();
+		server.register("a", targetOf());
+		server.register("b", targetOf());
+		const good = await hello(server, "b");
+		await until(() => fakes.length === 1);
+		const badHello = await hello(server, "a", 1001, 10);
+		await until(() => badHello.closed);
+		const path = (await server.socketPath()) as string;
+		for (const bad of [{ type: "input", data: "x".repeat(4097) }, { type: "nope" }]) {
+			const c = await connect(path);
+			c.send({ type: "hello", key: "a", cols: 80, rows: 24 });
+			await until(() => fakes.length >= 2);
+			c.send(bad);
+			await until(() => c.closed);
+		}
+		const first = await connect(path);
+		first.send({ type: "input", data: "x" });
+		await until(() => first.closed);
+		fakes[0].send(["ok"]);
+		await until(() => good.messages.length === 1);
+		expect(good.closed).toBe(false);
+	});
+
+	it("closes only the failing viewer", async () => {
+		const server = makeServer();
+		server.register("a", targetOf());
+		server.register("b", targetOf());
+		const a = await hello(server, "a");
+		const b = await hello(server, "b");
+		await until(() => fakes.length === 2);
+		a.socket.destroy();
+		await until(() => fakes[0].dispose.mock.calls.length === 1);
+		expect(() => fakes[0].send(["x"])).not.toThrow();
+		fakes[1].send(["y"]);
+		await until(() => b.messages.length === 1);
+		expect(fakes[1].dispose).not.toHaveBeenCalled();
+	});
+
+	it("closes the viewer whose write fails", async () => {
+		const server = makeServer();
+		server.register("a", targetOf());
+		server.register("b", targetOf());
+		await server.socketPath();
+		const sockets = serverSockets(server);
+		await hello(server, "a");
+		const b = await hello(server, "b");
+		await until(() => fakes.length === 2 && sockets.length === 2);
+		vi.mocked(debugLog).mockClear();
+		sockets[0].write = ((_d: unknown, cb?: (e?: Error) => void) => {
+			cb?.(new Error("EPIPE"));
+			return false;
+		}) as never;
+		fakes[0].send(["x"]);
+		expect(debugLog).toHaveBeenCalledWith("viewer socket write", expect.any(Error));
+		expect(sockets[0].destroyed).toBe(true);
+		expect(fakes[0].dispose).toHaveBeenCalledTimes(1);
+		fakes[1].send(["y"]);
+		await until(() => b.messages.length === 1);
+		expect(fakes[1].dispose).not.toHaveBeenCalled();
+	});
+
+	it("closes the viewer whose real socket write fails", async () => {
+		const server = makeServer();
+		server.register("a", targetOf());
+		server.register("b", targetOf());
+		await server.socketPath();
+		const sockets = serverSockets(server);
+		await hello(server, "a");
+		const b = await hello(server, "b");
+		await until(() => fakes.length === 2 && sockets.length === 2);
+		vi.mocked(debugLog).mockClear();
+		// End the writable side for real: the next write fails with ERR_STREAM_WRITE_AFTER_END.
+		sockets[0].end();
+		fakes[0].send(["x"]);
+		await until(() => fakes[0].dispose.mock.calls.length === 1);
+		expect(debugLog).toHaveBeenCalledWith("viewer socket write", expect.objectContaining({ code: "ERR_STREAM_WRITE_AFTER_END" }));
+		expect(sockets[0].destroyed).toBe(true);
+		fakes[1].send(["y"]);
+		await until(() => b.messages.length === 1);
+		expect(fakes[1].dispose).not.toHaveBeenCalled();
+	});
+
+	it("one renderer failing leaves another updating", async () => {
+		const theme = { fg: (_c: string, t: string) => t, bold: (t: string) => t, getThinkingBorderColor: () => (t: string) => t };
+		const keys = new KeybindingsManager(TUI_KEYBINDINGS, {});
+		const broken = { on: false };
+		const tool = {
+			name: "mytool",
+			label: "mytool",
+			description: "d",
+			parameters: {},
+			execute: async () => ({}),
+			renderCall: () => ({
+				render: () => {
+					if (broken.on) throw new Error("boom");
+					return ["TOOL"];
+				},
+				invalidate: () => {},
+			}),
+		} as unknown as ToolDefinition;
+		const messages = [
+			{ role: "user", content: "hi" },
+		] as unknown as SessionMessage[];
+		let listeners: Array<(e?: never) => void> = [];
+		const recordA = makeNavigable({
+			isSessionReady: () => true,
+			subscribeToUpdates: (fn) => {
+				listeners.push(fn as never);
+				return () => {
+					listeners = listeners.filter((l) => l !== (fn as never));
+				};
+			},
+			getToolDefinition: () => tool,
+		});
+		Object.defineProperty(recordA, "agentMessages", { get: () => messages });
+		const recordB = makeNavigable({ isSessionReady: () => true });
+		Object.defineProperty(recordB, "agentMessages", { get: () => [{ role: "user", content: "b" }] });
+		const factory = (target: ViewerTarget, send: (l: string[]) => void) =>
+			new ViewerRenderer({ target, send, theme, keys, cwd: "/cwd", markdownTheme: getMarkdownTheme() });
+		const server = makeServer(factory);
+		server.register("a", targetOf(recordA));
+		server.register("b", targetOf(recordB));
+		const a = await hello(server, "a");
+		const b = await hello(server, "b");
+		await until(() => a.messages.length > 0 && b.messages.length > 0);
+		const aBefore = a.messages.length;
+		const bBefore = b.messages.length;
+		messages.push(
+			{ role: "assistant", content: [{ type: "toolCall", id: "t", name: "mytool", arguments: {} }], stopReason: "toolUse", timestamp: 1 } as never,
+		);
+		broken.on = true;
+		for (const l of [...listeners]) l();
+		server.refresh("a");
+		await settle();
+		expect(a.messages.length).toBe(aBefore);
+		(recordB as unknown as { agentMessages: unknown[] });
+		server.refresh("b");
+		a.send({ type: "wheel", delta: 1 });
+		b.send({ type: "resize", cols: 70, rows: 20 });
+		await until(() => b.messages.length > bBefore);
+		expect(b.closed).toBe(false);
+	});
+
+	it("shuts down an in-flight listen", async () => {
+		const root = mkdtempSync(join(tmpdir(), "hf-"));
+		const server = makeServer(fakeFactory, root);
+		const path = server.socketPath();
+		await server.close();
+		expect(await path).toBeUndefined();
+		expect(readdirSync(root)).toEqual([]);
+		expect((server as unknown as { server: unknown }).server).toBeUndefined();
+		expect(await server.socketPath()).toBeUndefined();
+	});
+
+	it("forgets connections that never said hello", async () => {
+		const server = makeServer();
+		await server.socketPath();
+		const sockets = serverSockets(server);
+		for (let i = 0; i < 5; i++) {
+			const c = await hello(server, "unknown");
+			await until(() => c.closed);
+		}
+		await until(() => sockets.length === 5 && connectionCount(server) === 0);
+	});
+
+	it("disposes a renderer when unregister runs inside the factory", async () => {
+		const disposed = vi.fn();
+		const resize = vi.fn();
+		let server: FrameServer;
+		const factory = (_t: ViewerTarget, _send: (l: string[]) => void) => {
+			server.unregister("a");
+			return { resize, input: vi.fn(), wheel: vi.fn(), refresh: vi.fn(), dispose: disposed } as unknown as ViewerRenderer;
+		};
+		server = makeServer(factory);
+		server.register("a", targetOf());
+		const client = await hello(server, "a");
+		await until(() => client.closed);
+		expect(disposed).toHaveBeenCalledTimes(1);
+		expect(resize).not.toHaveBeenCalled();
+	});
+
+	it("refresh reaches the renderer", async () => {
+		const server = makeServer();
+		server.register("a", targetOf());
+		await hello(server, "a");
+		await until(() => fakes.length === 1);
+		server.refresh("a");
+		server.refresh("missing");
+		expect(fakes[0].refresh).toHaveBeenCalledTimes(1);
+	});
+
+	it("unregister disposes the renderer", async () => {
+		const server = makeServer();
+		server.register("a", targetOf());
+		const client = await hello(server, "a");
+		await until(() => fakes.length === 1);
+		server.unregister("a");
+		expect(fakes[0].dispose).toHaveBeenCalledTimes(1);
+		await until(() => client.closed);
+	});
+
+	it("refuses a group/other-writable socket root", async () => {
+		const root = mkdtempSync(join(tmpdir(), "hf-"));
+		chmodSync(root, 0o777);
+		const server = makeServer(fakeFactory, root);
+		vi.mocked(debugLog).mockClear();
+		expect(await server.socketPath()).toBeUndefined();
+		expect(readdirSync(root)).toEqual([]);
+		expect(debugLog).toHaveBeenCalledWith("frame server unsafe socket root", root);
+	});
+
+	it("refuses a symlinked socket root", async () => {
+		const base = mkdtempSync(join(tmpdir(), "hf-"));
+		roots.push(base);
+		const real = join(base, "real");
+		mkdirSync(real, { mode: 0o700 });
+		const link = join(base, "link");
+		symlinkSync(real, link);
+		const server = makeServer(fakeFactory, link);
+		expect(await server.socketPath()).toBeUndefined();
+		expect(readdirSync(real)).toEqual([]);
+	});
+
+	it("reports no socket when the path is too long", async () => {
+		const root = join(mkdtempSync(join(tmpdir(), "hf-")), "x".repeat(120));
+		const server = makeServer(fakeFactory, root);
+		expect(await server.socketPath()).toBeUndefined();
+	});
+
+	it("close removes sockets, renderers and the directory", async () => {
+		const server = makeServer();
+		server.register("a", targetOf());
+		const client = await hello(server, "a");
+		await until(() => fakes.length === 1);
+		const dir = dirname((await server.socketPath()) as string);
+		await server.close();
+		await server.close();
+		expect(fakes[0].dispose).toHaveBeenCalledTimes(1);
+		expect(existsSync(dir)).toBe(false);
+		await until(() => client.closed);
+	});
+});

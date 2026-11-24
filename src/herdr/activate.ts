@@ -7,16 +7,20 @@ import { existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { getMarkdownTheme } from "@earendil-works/pi-coding-agent";
+import { getKeybindings } from "@earendil-works/pi-tui";
 import { debugLog } from "#src/debug";
 import { type HerdrCli, HerdrQueue } from "#src/herdr/cli";
 import { ViewerColumn } from "#src/herdr/column";
 import { detectHerdr } from "#src/herdr/detect";
-import { HerdrViewers, type HerdrViewersSlot, type TitleOf } from "#src/herdr/herdr-observer";
+import { FrameServer } from "#src/herdr/frame-server";
+import { type HeadingOf, HerdrViewers, type HerdrViewersSlot } from "#src/herdr/herdr-observer";
 import { OutputFilePoller } from "#src/herdr/output-file-poller";
 import { viewerRuntime } from "#src/herdr/runtime";
-import { ViewerStatusFiles } from "#src/herdr/status-files";
 import { ViewerProcesses } from "#src/herdr/viewer-process";
 import { ViewerRegistry } from "#src/herdr/viewer-registry";
+import { ViewerRenderer } from "#src/herdr/viewer-renderer";
+import type { TranscriptTheme } from "#src/ui/session-navigator";
 
 export interface ActivateInput {
 	mode: string | undefined;
@@ -24,7 +28,8 @@ export interface ActivateInput {
 	cli: HerdrCli;
 	cwd: string;
 	pid: number;
-	titleOf: TitleOf;
+	headingOf: HeadingOf;
+	theme: TranscriptTheme;
 }
 
 /** Absolute path of the standalone viewer program, resolved next to this module. */
@@ -44,17 +49,29 @@ export async function activateHerdrViewers(input: ActivateInput): Promise<HerdrV
 			pid: input.pid,
 			parentTerminal: ctx.terminalId,
 		}),
-		statusFiles: new ViewerStatusFiles(join(tmpdir(), "pi-subagents-herdr"), input.pid),
+		frames: new FrameServer({
+			root: join(tmpdir(), "pi-subagents-herdr"),
+			pid: input.pid,
+			createRenderer: (target, send) =>
+				new ViewerRenderer({
+					target,
+					send,
+					theme: input.theme,
+					keys: getKeybindings(),
+					cwd: input.cwd,
+					markdownTheme: getMarkdownTheme(),
+				}),
+		}),
 		registry: new ViewerRegistry(),
 		createPoller: (onReady) => new OutputFilePoller(onReady),
 		queue: new HerdrQueue(),
 		cwd: input.cwd,
-		titleOf: input.titleOf,
+		headingOf: input.headingOf,
 		fileExists: existsSync,
 	});
 }
 
-type Activate = (cwd: string, mode: string | undefined) => Promise<HerdrViewers | undefined>;
+type Activate = (cwd: string, mode: string | undefined, theme: TranscriptTheme) => Promise<HerdrViewers | undefined>;
 
 /**
  * Per-session lifetime of the viewers: activation runs without blocking
@@ -69,9 +86,9 @@ export class HerdrActivation {
 		private readonly activate: Activate,
 	) {}
 
-	start(ctx: { cwd: string; mode?: string }): void {
+	start(ctx: { cwd: string; mode?: string; theme: TranscriptTheme }): void {
 		const generation = ++this.generation;
-		this.activate(ctx.cwd, ctx.mode)
+		this.activate(ctx.cwd, ctx.mode, ctx.theme)
 			.then((viewers) => this.install(generation, viewers))
 			.catch((err) => debugLog("herdr activation failed", err));
 	}

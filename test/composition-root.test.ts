@@ -6,7 +6,7 @@
  * `test/session/provider-inheritance.test.ts`, but those tests pass whether or
  * not the root calls it — only this file fails if the wiring is removed.
  */
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -58,6 +58,11 @@ vi.mock("#src/config/package-agents", async () => {
   return { ...actual, seedProjectTrust: vi.fn(actual.seedProjectTrust), setProjectTrusted: vi.fn(actual.setProjectTrusted) };
 });
 
+vi.mock("#src/herdr/activate", async () => {
+  const actual = await vi.importActual<typeof import("#src/herdr/activate")>("#src/herdr/activate");
+  return { ...actual, activateHerdrViewers: vi.fn(actual.activateHerdrViewers) };
+});
+
 vi.mock("#src/lifecycle/create-subagent-session", async () => {
   const actual = await vi.importActual<typeof import("#src/lifecycle/create-subagent-session")>(
     "#src/lifecycle/create-subagent-session",
@@ -66,6 +71,7 @@ vi.mock("#src/lifecycle/create-subagent-session", async () => {
 });
 
 import { seedProjectTrust, setProjectTrusted } from "#src/config/package-agents";
+import { activateHerdrViewers } from "#src/herdr/activate";
 import subagentsExtension from "#src/index";
 import { createSubagentSession } from "#src/lifecycle/create-subagent-session";
 import { getSubagentsService, unpublishSubagentsService } from "#src/service/service";
@@ -561,5 +567,31 @@ describe("composition root: Herdr viewers", () => {
     expect(dispose).toHaveBeenCalledTimes(1);
     expect(exec.mock.calls.filter(([cmd, args]) => cmd === "hc" && args[0] === "run")).toEqual([]);
     dispose.mockRestore();
+  });
+
+  it("uses the navigator heading for viewers", async () => {
+    vi.stubEnv("HC_TERMINAL_ID", "");
+    const agentsDir = join(emptyAgentDir, "agents");
+    mkdirSync(agentsDir, { recursive: true });
+    const agentFile = join(agentsDir, "scout.md");
+    writeFileSync(agentFile, "---\nname: scout\ndisplay_name: Scout Prime\ndescription: d\n---\nbody\n");
+    try {
+      const { pi, fire } = makePi();
+      subagentsExtension(pi);
+      const themeSentinel = { sentinel: "theme" };
+      const ctx = tuiCtx();
+      ctx.ui.theme = themeSentinel;
+      vi.mocked(activateHerdrViewers).mockClear();
+      await fire("session_start", {}, ctx);
+      await settle();
+      expect(activateHerdrViewers).toHaveBeenCalledTimes(1);
+      const input = vi.mocked(activateHerdrViewers).mock.calls[0]?.[0];
+      expect(input?.theme).toBe(themeSentinel);
+      const heading = input?.headingOf({ type: "scout", description: "find it", context: "fork" } as never);
+      expect(heading).toEqual({ name: "Scout Prime", modeLabel: "fork", description: "find it" });
+      await fire("session_shutdown", {}, {});
+    } finally {
+      rmSync(agentFile, { force: true });
+    }
   });
 });

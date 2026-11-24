@@ -222,6 +222,26 @@ describe("TranscriptContent", () => {
       expect(render.mock.calls.length).toBeLessThan(fullRebuild);
     });
 
+    it("resync drops a stale in-flight message", () => {
+      let messages = manyMessages(2);
+      const content = makeContent(fakeSource({ getMessages: () => messages }));
+      content.apply(partialAssistant("stale partial"));
+
+      messages = [
+        ...messages,
+        {
+          role: "assistant",
+          content: [{ type: "text", text: "stale partial" }],
+          stopReason: "stop",
+          timestamp: 1,
+        } as unknown as SessionMessage,
+      ];
+      content.resync();
+      const out = rendered(content);
+
+      expect(out.match(/stale partial/g)).toHaveLength(1);
+    });
+
     it("drops the in-flight rows once the message settles", () => {
       let messages = manyMessages(2);
       const content = makeContent(fakeSource({ getMessages: () => messages }));

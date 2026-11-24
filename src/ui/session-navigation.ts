@@ -47,6 +47,8 @@ export interface NavigableSubagent {
   isSessionReady(): boolean;
   subscribeToUpdates(fn: (event: AgentSessionEvent) => void): (() => void) | undefined;
   getToolDefinition(name: string): ToolDefinition | undefined;
+  /** The partial message being streamed right now, if any; lets a late subscriber show it. */
+  inFlightMessage?(): SessionMessage | undefined;
 }
 
 /**
@@ -198,7 +200,7 @@ export function liveSource(record: NavigableSubagent): TranscriptSource {
   };
 }
 
-function buildHeading(fields: Pick<LabelFields, "type" | "description"> & Partial<Pick<NavigableSubagent, "context" | "contextFallback">>, registry: AgentConfigLookup): EntryHeading {
+export function buildHeading(fields: Pick<LabelFields, "type" | "description"> & Partial<Pick<NavigableSubagent, "context" | "contextFallback">>, registry: AgentConfigLookup): EntryHeading {
   return {
     name: getDisplayName(fields.type, registry),
     modeLabel: fields.context ? getContextLabel(fields.context, fields.contextFallback) : undefined,
