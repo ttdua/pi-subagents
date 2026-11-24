@@ -9,10 +9,8 @@ import { asRecord, asString, parseJson } from "#src/herdr/json";
 export interface ViewerLaunch {
 	key: string;
 	agentType: string | undefined;
-	title: string;
-	outputFile: string;
 	cwd: string;
-	statusFile: string;
+	socket: string;
 }
 
 export interface ViewerProcessOptions {
@@ -66,16 +64,14 @@ export class ViewerProcesses {
 		return [
 			...runtime,
 			viewerPath,
-			"--file",
-			l.outputFile,
-			"--status",
-			l.statusFile,
+			"--socket",
+			l.socket,
+			"--key",
+			l.key,
 			"--pid",
 			String(pid),
 			"--parent-terminal",
 			parentTerminal,
-			"--title",
-			l.title,
 		];
 	}
 

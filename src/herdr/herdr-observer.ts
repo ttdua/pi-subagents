@@ -10,32 +10,33 @@
 import { debugLog } from "#src/debug";
 import type { HerdrQueue } from "#src/herdr/cli";
 import type { ColumnViewer, ViewerColumn } from "#src/herdr/column";
+import type { FrameServer } from "#src/herdr/frame-server";
 import type { OutputFilePoller } from "#src/herdr/output-file-poller";
-import type { ViewerStatus, ViewerStatusFiles } from "#src/herdr/status-files";
 import type { ViewerProcesses } from "#src/herdr/viewer-process";
 import { fileViewerKey, type RegisteredViewer, type ViewerRegistry } from "#src/herdr/viewer-registry";
+import type { ViewerTarget } from "#src/herdr/viewer-source";
 import type { Subagent } from "#src/lifecycle/subagent";
 import type { SubagentManagerObserver } from "#src/lifecycle/subagent-manager";
 import type { RunKind } from "#src/lifecycle/subagent-run";
 import type { SubagentStatus } from "#src/lifecycle/subagent-state";
 import type { CompactionInfo } from "#src/types";
-import type { NavigationEntry } from "#src/ui/session-navigation";
+import type { EntryHeading, NavigableSubagent, NavigationEntry } from "#src/ui/session-navigation";
 
 export const DISPOSE_CAP_MS = 3000;
 
-export type TitleOf = (x: { type: string; description: string }) => string;
+export type HeadingOf = (record: Subagent) => EntryHeading;
 
 type Sleep = (ms: number) => Promise<void>;
 
 export interface HerdrViewersDeps {
 	column: ViewerColumn;
 	processes: ViewerProcesses;
-	statusFiles: ViewerStatusFiles;
+	frames: Pick<FrameServer, "socketPath" | "register" | "refresh" | "unregister" | "close">;
 	registry: ViewerRegistry;
 	createPoller: (onReady: (record: Subagent, file: string) => void) => OutputFilePoller;
 	queue: HerdrQueue;
 	cwd: string;
-	titleOf: TitleOf;
+	headingOf: HeadingOf;
 	fileExists: (path: string) => boolean;
 	/** Timer for the dispose cap; injected by tests. */
 	sleep?: Sleep;
@@ -45,7 +46,7 @@ export interface HerdrViewersDeps {
 interface ViewerSource {
 	key: string;
 	agentType: string | undefined;
-	title: string;
+	target: ViewerTarget;
 	outputFile: string;
 	/** Absent for a snapshot whose run status is not known. */
 	status: SubagentStatus | undefined;
@@ -56,10 +57,8 @@ const unrefSleep: Sleep = (ms) =>
 		setTimeout(resolve, ms).unref?.();
 	});
 
-function statusFor(status: SubagentStatus | undefined): ViewerStatus {
-	if (status === undefined) return { state: "done" };
-	if (status === "queued" || status === "running") return { state: "running" };
-	return { state: "done", status };
+function isRunning(status: SubagentStatus | undefined): boolean {
+	return status === "queued" || status === "running";
 }
 
 export class HerdrViewers implements SubagentManagerObserver {
@@ -73,10 +72,12 @@ export class HerdrViewers implements SubagentManagerObserver {
 	}
 
 	onSubagentRunStarted(record: Subagent, _kind: RunKind): void {
+		this.refreshFrame(record.id);
 		this.schedule(`run started ${record.id}`, () => this.runStarted(record));
 	}
 
 	onSubagentRunFinished(record: Subagent, _kind: RunKind): void {
+		this.refreshFrame(record.id);
 		this.schedule(`run finished ${record.id}`, () => this.runFinished(record));
 	}
 
@@ -96,7 +97,7 @@ export class HerdrViewers implements SubagentManagerObserver {
 		return shown;
 	}
 
-	/** Ends every known viewer (capped at `DISPOSE_CAP_MS`) and removes the status files. */
+	/** Ends every known viewer (capped at `DISPOSE_CAP_MS`), then closes the frame server. */
 	async dispose(): Promise<void> {
 		if (this.disposed) return;
 		this.disposed = true;
@@ -105,9 +106,19 @@ export class HerdrViewers implements SubagentManagerObserver {
 		const ends = Promise.allSettled(this.deps.registry.all().map((e) => this.deps.processes.end(e.terminal)));
 		await Promise.race([ends, this.sleep(DISPOSE_CAP_MS)]);
 		try {
-			this.deps.statusFiles.removeAll();
+			await this.deps.frames.close();
 		} catch (err) {
-			debugLog("herdr status files removal failed", err);
+			debugLog("herdr frame server close failed", err);
+		}
+	}
+
+	/** Flags the viewer's frame as stale; a failure only loses a repaint, never the column work. */
+	private refreshFrame(key: string): void {
+		if (this.disposed) return;
+		try {
+			this.deps.frames.refresh(key);
+		} catch (err) {
+			debugLog(`herdr frame refresh failed for ${key}`, err);
 		}
 	}
 
@@ -130,7 +141,6 @@ export class HerdrViewers implements SubagentManagerObserver {
 		const live = await this.deps.processes.isLive(known.terminal);
 		if (this.disposed) return;
 		if (live) {
-			this.writeStatus(known.key, { state: "running" });
 			await this.deps.column.place(known.viewer);
 			return;
 		}
@@ -143,7 +153,6 @@ export class HerdrViewers implements SubagentManagerObserver {
 		this.poller.unwatch(record.id);
 		const known = this.deps.registry.byKey(record.id);
 		if (known === undefined) return;
-		this.writeStatus(known.key, statusFor(record.status));
 		await this.deps.column.hide(known.viewer);
 	}
 
@@ -160,22 +169,12 @@ export class HerdrViewers implements SubagentManagerObserver {
 	private async startPlaceRegister(source: ViewerSource): Promise<ColumnViewer | undefined> {
 		const viewer = await this.startViewer(source);
 		if (viewer === undefined) return undefined;
-		if (statusFor(source.status).state === "running") {
+		if (isRunning(source.status)) {
 			await this.deps.column.place(viewer);
 			if (this.endIfDisposed(viewer.terminal)) return undefined;
 		}
 		this.deps.registry.add(source.key, { terminal: viewer.terminal, outputFile: source.outputFile, viewer });
 		return viewer;
-	}
-
-	/** A failed write only loses the viewer's status line; the column work goes on. Never recreates the dir after dispose. */
-	private writeStatus(key: string, s: ViewerStatus): void {
-		if (this.disposed) return;
-		try {
-			this.deps.statusFiles.write(key, s);
-		} catch (err) {
-			debugLog(`herdr status write failed for ${key}`, err);
-		}
 	}
 
 	private async openNow(entry: NavigationEntry, outputFile: string): Promise<boolean> {
@@ -203,18 +202,17 @@ export class HerdrViewers implements SubagentManagerObserver {
 		return this.startPlaceRegister(source);
 	}
 
-	/** Writes the initial status and starts the terminal; a start that lands after dispose is ended. */
+	/** Registers the frame target and starts the terminal; a start that lands after dispose is ended. */
 	private async startViewer(source: ViewerSource): Promise<ColumnViewer | undefined> {
-		const { statusFiles, processes, cwd } = this.deps;
-		this.writeStatus(source.key, statusFor(source.status));
-		const terminal = await processes.start({
-			key: source.key,
-			agentType: source.agentType,
-			title: source.title,
-			outputFile: source.outputFile,
-			cwd,
-			statusFile: statusFiles.pathFor(source.key),
-		});
+		const { frames, processes, cwd } = this.deps;
+		const socket = await frames.socketPath();
+		if (socket === undefined) {
+			debugLog("herdr frame server unavailable; no viewer for", source.key);
+			return undefined;
+		}
+		if (this.disposed) return undefined;
+		frames.register(source.key, source.target);
+		const terminal = await processes.start({ key: source.key, agentType: source.agentType, cwd, socket });
 		if (terminal === undefined || this.endIfDisposed(terminal)) return undefined;
 		return { terminal };
 	}
@@ -228,25 +226,30 @@ export class HerdrViewers implements SubagentManagerObserver {
 	/** Drops a viewer whose terminal is gone, from the column and the registry. */
 	private async forget(known: RegisteredViewer): Promise<void> {
 		this.deps.registry.remove(known.key);
+		this.deps.frames.unregister(known.key);
 		await this.deps.column.hide(known.viewer);
 	}
 
-	private recordSource(record: Pick<Subagent, "id" | "type" | "description" | "status">, outputFile: string): ViewerSource {
+	private recordSource(record: Subagent, outputFile: string): ViewerSource {
+		return this.liveSource(record, this.deps.headingOf(record), outputFile);
+	}
+
+	private liveSource(record: NavigableSubagent, heading: EntryHeading, outputFile: string): ViewerSource {
 		return {
 			key: record.id,
 			agentType: record.type,
-			title: this.deps.titleOf(record),
+			target: { kind: "record", record, heading },
 			outputFile,
 			status: record.status,
 		};
 	}
 
 	private entrySource(entry: NavigationEntry, outputFile: string): ViewerSource {
-		if (entry.kind === "live") return this.recordSource(entry.record, outputFile);
+		if (entry.kind === "live") return this.liveSource(entry.record, entry.heading, outputFile);
 		return {
 			key: fileViewerKey(outputFile),
 			agentType: entry.heading.name,
-			title: `${entry.heading.name} · ${entry.heading.description}`,
+			target: { kind: "file", outputFile, heading: entry.heading },
 			outputFile,
 			status: undefined,
 		};

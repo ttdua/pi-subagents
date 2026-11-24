@@ -198,7 +198,7 @@ export function liveSource(record: NavigableSubagent): TranscriptSource {
   };
 }
 
-function buildHeading(fields: Pick<LabelFields, "type" | "description"> & Partial<Pick<NavigableSubagent, "context" | "contextFallback">>, registry: AgentConfigLookup): EntryHeading {
+export function buildHeading(fields: Pick<LabelFields, "type" | "description"> & Partial<Pick<NavigableSubagent, "context" | "contextFallback">>, registry: AgentConfigLookup): EntryHeading {
   return {
     name: getDisplayName(fields.type, registry),
     modeLabel: fields.context ? getContextLabel(fields.context, fields.contextFallback) : undefined,

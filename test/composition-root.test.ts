@@ -58,6 +58,11 @@ vi.mock("#src/config/package-agents", async () => {
   return { ...actual, seedProjectTrust: vi.fn(actual.seedProjectTrust), setProjectTrusted: vi.fn(actual.setProjectTrusted) };
 });
 
+vi.mock("#src/herdr/activate", async () => {
+  const actual = await vi.importActual<typeof import("#src/herdr/activate")>("#src/herdr/activate");
+  return { ...actual, activateHerdrViewers: vi.fn(actual.activateHerdrViewers) };
+});
+
 vi.mock("#src/lifecycle/create-subagent-session", async () => {
   const actual = await vi.importActual<typeof import("#src/lifecycle/create-subagent-session")>(
     "#src/lifecycle/create-subagent-session",
@@ -66,6 +71,7 @@ vi.mock("#src/lifecycle/create-subagent-session", async () => {
 });
 
 import { seedProjectTrust, setProjectTrusted } from "#src/config/package-agents";
+import { activateHerdrViewers } from "#src/herdr/activate";
 import subagentsExtension from "#src/index";
 import { createSubagentSession } from "#src/lifecycle/create-subagent-session";
 import { getSubagentsService, unpublishSubagentsService } from "#src/service/service";
@@ -561,5 +567,20 @@ describe("composition root: Herdr viewers", () => {
     expect(dispose).toHaveBeenCalledTimes(1);
     expect(exec.mock.calls.filter(([cmd, args]) => cmd === "hc" && args[0] === "run")).toEqual([]);
     dispose.mockRestore();
+  });
+
+  it("uses the navigator heading for viewers", async () => {
+    vi.stubEnv("HC_TERMINAL_ID", "");
+    const { pi, fire } = makePi();
+    subagentsExtension(pi);
+    const ctx = tuiCtx();
+    await fire("session_start", {}, ctx);
+    await settle();
+    const input = vi.mocked(activateHerdrViewers).mock.calls.at(-1)?.[0];
+    expect(input?.theme).toBe(ctx.ui.theme);
+    const heading = input?.headingOf({ type: "general-purpose", description: "find it", context: "fork" } as never);
+    expect(heading).toMatchObject({ description: "find it", modeLabel: "fork" });
+    expect(heading?.name).toEqual(expect.any(String));
+    await fire("session_shutdown", {}, {});
   });
 });

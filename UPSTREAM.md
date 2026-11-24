@@ -260,18 +260,19 @@ Outside the table below, the fork also changes repository files that upstream ke
 | `test/herdr/column.test.ts` | add | Tests for column placement, focus restore, overflow, park and peek retry. |
 | `test/herdr/fake-herdr-app.ts` | add | `FakeHerdrCli` preset following a mutable pane model of `herdr-app`. |
 | `src/herdr/runtime.ts` | add | `viewerRuntime`: picks the program that runs `viewer.ts` directly (Bun, Node ≥ 22.18, else `node`). |
-| `src/herdr/status-files.ts` | add | `ViewerStatusFiles`: atomic per-viewer running/done status files under the tmp dir. |
-| `src/herdr/viewer-process.ts` | add | `ViewerProcesses`: start, liveness and end of viewer terminals through `hc`. |
+| `src/herdr/viewer-process.ts` | add | `ViewerProcesses`: start, liveness and end of viewer terminals through `hc`; the viewer gets `--socket`/`--key` instead of a file and status path. |
 | `src/herdr/viewer-registry.ts` | add | `ViewerRegistry`: known viewers by key and by transcript path. |
 | `src/herdr/output-file-poller.ts` | add | `OutputFilePoller`: reports when a record first has an `outputFile`. |
-| `src/herdr/herdr-observer.ts` | add | `HerdrViewers` lifecycle observer (sole queue owner) and `HerdrViewersSlot`. |
+| `src/herdr/herdr-observer.ts` | add | `HerdrViewers` lifecycle observer (sole queue owner) and `HerdrViewersSlot`; registers frame targets instead of writing status files. |
 | `test/herdr/runtime.test.ts` | add | Tests for viewer runtime selection across Bun, Node versions and single binaries. |
-| `test/herdr/status-files.test.ts` | add | Tests for atomic status writes and status dir removal. |
 | `test/herdr/viewer-process.test.ts` | add | Tests for `hc run` argv, name sanitizing, retry, liveness and end order. |
 | `test/herdr/output-file-poller.test.ts` | add | Tests for output file polling, unwatch and timer lifetime. |
 | `test/herdr/herdr-observer.test.ts` | add | Scenario tests for viewer lifecycle, sessions `open`, ordering, failures and dispose. |
-| `src/herdr/activate.ts` | add | `activateHerdrViewers` and `HerdrActivation`: build the Herdr observer after detection and own its per-session lifetime. |
+| `src/herdr/activate.ts` | add | `activateHerdrViewers` and `HerdrActivation`: build the Herdr observer and its `FrameServer` after detection and own its per-session lifetime; the session theme flows through. |
 | `test/herdr/activate.test.ts` | add | Tests for activation, viewer path and the session generation guard. |
+| `src/index.ts` (Herdr viewers) | edit | Pass the session theme and `buildHeading` to the Herdr activation. |
+| `src/ui/session-navigation.ts` (heading) | edit | Export `buildHeading` for the Herdr viewers. |
+| `test/composition-root.test.ts` (Herdr viewers) | edit | Cover the navigator heading and theme reaching the Herdr activation. |
 | `docs/decisions/0015-subagent-viewers-in-a-herdr-column.md` | seam | ADR for the Herdr viewer column; `/subagents:sessions` may open a Herdr viewer, the fleet list is unchanged. |
 | `docs/decisions/0013-fleet-list-opens-the-session-pane.md` | edit | Status line points to ADR 0015. |
 | `README.md` (Herdr) | edit | `Herdr` section: the viewer column, detection rule, `/subagents:sessions` inside Herdr and runtime limits. |

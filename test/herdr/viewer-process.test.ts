@@ -7,10 +7,8 @@ const OPTS = { runtime: ["/rt/bun"], viewerPath: "/pkg/src/herdr/viewer.ts", pid
 const launch = (over: Partial<ViewerLaunch> = {}): ViewerLaunch => ({
 	key: "a1b2c3d4e5",
 	agentType: "explore",
-	title: "Explore · find things",
-	outputFile: "/s/a.jsonl",
 	cwd: "/work",
-	statusFile: "/st/99/a1b2c3d4e5.json",
+	socket: "/tmp/pi/99-abc/s.sock",
 	...over,
 });
 
@@ -28,8 +26,8 @@ describe("ViewerProcesses.start", () => {
 				args: [
 					"run", "--bg", "--json", "--name", "explore-a1b2c3", "--cwd", "/work", "--",
 					"/rt/bun", "/pkg/src/herdr/viewer.ts",
-					"--file", "/s/a.jsonl", "--status", "/st/99/a1b2c3d4e5.json", "--pid", "99",
-					"--parent-terminal", "t3s", "--title", "Explore · find things",
+					"--socket", "/tmp/pi/99-abc/s.sock", "--key", "a1b2c3d4e5", "--pid", "99",
+					"--parent-terminal", "t3s",
 				],
 			},
 		]);
