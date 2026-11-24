@@ -286,3 +286,5 @@ Outside the table below, the fork also changes repository files that upstream ke
 | `src/herdr/headless-tui.ts` | add | Terminal-less TUI surface for rendering the transcript pane into frames. |
 | `src/herdr/viewer-renderer.ts` | add | Frame-scheduled renderer producing Herdr viewer frames from the transcript pane. |
 | `test/herdr/viewer-renderer.test.ts` | add | Tests for the viewer renderer. |
+| `src/herdr/frame-server.ts` | add | Unix-socket frame server connecting Herdr viewer processes to their renderers. |
+| `test/herdr/frame-server.test.ts` | add | Tests for the frame server over real sockets. |
