@@ -212,8 +212,17 @@ export class HerdrViewers implements SubagentManagerObserver {
 		}
 		if (this.disposed) return undefined;
 		frames.register(source.key, source.target);
-		const terminal = await processes.start({ key: source.key, agentType: source.agentType, cwd, socket });
-		if (terminal === undefined || this.endIfDisposed(terminal)) return undefined;
+		let terminal: string | undefined;
+		try {
+			terminal = await processes.start({ key: source.key, agentType: source.agentType, cwd, socket });
+		} catch (err) {
+			frames.unregister(source.key);
+			throw err;
+		}
+		if (terminal === undefined || this.endIfDisposed(terminal)) {
+			frames.unregister(source.key);
+			return undefined;
+		}
 		return { terminal };
 	}
 

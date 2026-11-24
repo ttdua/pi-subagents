@@ -69,9 +69,13 @@ class GatedCli implements HerdrCli {
 		};
 	}
 
+	/** Receives `hc run` / `hc rm` as they complete, to order them against frame calls. */
+	onCall: ((entry: string) => void) | undefined;
+
 	async run(command: HerdrCommand, args: readonly string[]): Promise<HerdrResult> {
 		const sub = command === "herdr-app" && args[0] === "do" ? args[1] : args[0];
 		const result = await this.inner.run(command, args);
+		if (command === "hc" && (sub === "run" || sub === "rm")) this.onCall?.(`hc ${sub}`);
 		const hold = this.holds.get(`${command} ${sub}`);
 		if (hold !== undefined) await hold;
 		return result;
@@ -135,6 +139,7 @@ function setup(opts: { disposeSleep?: (ms: number) => Promise<void> } = {}) {
 	const column = new ViewerColumn(CTX, cli, async () => {});
 	const registry = new ViewerRegistry();
 	const fake = fakeFrames();
+	cli.onCall = (entry) => fake.log.push(entry);
 	const missing = new Set<string>();
 	let pollFn: (() => void) | undefined;
 	const timers = {
@@ -304,8 +309,13 @@ describe("HerdrViewers: finished children", () => {
 		const h = setup();
 		const r = rec("fin");
 		await h.startChild(r);
+		const refreshes = () => h.frames.log.filter((e) => e === "refresh fin").length;
+		expect(refreshes()).toBe(1);
 		await h.finishChild(r, finalStatus);
-		expect(h.frames.log).toContain("refresh fin");
+		expect(refreshes()).toBe(2);
+		const target = h.frames.registered[0]?.[1];
+		expect(target?.kind === "record" && target.record).toBe(r);
+		expect(r.status).toBe(finalStatus);
 		expect(h.doCalls("terminal.park")).toEqual(["herdr-app do terminal.park --terminal t10"]);
 		expect(h.calls()).not.toContain("hc kill t10");
 	});
@@ -316,7 +326,13 @@ describe("HerdrViewers: finished children", () => {
 		for (const r of records) await h.startChild(r);
 		const fifth = records[4] as StubRecord;
 		expect(h.column.isWaiting(h.viewerOf("e") ?? { terminal: "" })).toBe(true);
+		const refreshes = () => h.frames.log.filter((e) => e === "refresh e").length;
+		const before = refreshes();
 		await h.finishChild(fifth);
+		expect(refreshes()).toBe(before + 1);
+		const target = h.frames.registered.find(([k]) => k === "e")?.[1];
+		expect(target?.kind === "record" && target.record).toBe(fifth);
+		expect(fifth.status).toBe("completed");
 		expect(h.calls().filter((c) => c.includes("--terminal t14"))).toEqual([]);
 		expect(h.column.isWaiting(h.viewerOf("e") ?? { terminal: "" })).toBe(false);
 	});
@@ -327,7 +343,11 @@ describe("HerdrViewers: finished children", () => {
 		await h.startChild(first);
 		await h.finishChild(first);
 		for (const id of ["b", "c", "d", "e"]) await h.startChild(rec(id));
+		const refreshes = () => h.frames.log.filter((e) => e === "refresh first").length;
+		const before = refreshes();
 		await h.resumeChild(first);
+		expect(refreshes()).toBe(before + 1);
+		expect(h.frames.registered.filter(([k]) => k === "first")).toHaveLength(1);
 		expect(h.column.isWaiting(h.viewerOf("first") ?? { terminal: "" })).toBe(true);
 		expect(h.doCalls("terminal.keep").filter((c) => c.includes("t10 "))).toHaveLength(1);
 	});
@@ -336,26 +356,39 @@ describe("HerdrViewers: finished children", () => {
 describe("HerdrViewers: frames", () => {
 	it("registers the target before the viewer starts", async () => {
 		const h = setup();
-		await h.startChild(rec("ord"));
-		expect(h.frames.log[0]).toBe("refresh ord");
-		expect(h.frames.log).toContain("register ord");
+		const r = rec("ord");
+		await h.startChild(r);
+		const log = h.frames.log;
+		expect(log.indexOf("register ord")).toBeGreaterThanOrEqual(0);
+		expect(log.indexOf("register ord")).toBeLessThan(log.indexOf("hc run"));
+		const [key, target] = h.frames.registered[0] ?? [];
+		expect(key).toBe("ord");
+		expect(target).toEqual({
+			kind: "record",
+			record: r,
+			heading: { name: "Explore", modeLabel: undefined, description: "task ord" },
+		});
+		expect(target?.kind === "record" && target.record).toBe(r);
 	});
 
 	it("refreshes the frame before queued placement", async () => {
 		const h = setup();
 		const r = rec("early");
 		await h.startChild(r);
-		await h.finishChild(r);
-		const release = h.cli.hold("hc get");
+		const release = h.cli.hold("herdr-app terminal.keep");
+		r.outputFile = "/s/early.jsonl";
+		h.viewers.onSubagentRunFinished(sub(r), "initial");
+		await h.flush();
 		r.status = "running";
 		h.viewers.onSubagentRunStarted(sub(r), "resume");
-		await vi.waitFor(() => expect(h.calls()).toContain("hc get t10 --json"));
+		await vi.waitFor(() => expect(h.doCalls("terminal.keep")).toHaveLength(2));
+		const before = h.frames.log.filter((e) => e === "refresh early").length;
 		r.status = "completed";
 		h.viewers.onSubagentRunFinished(sub(r), "resume");
-		expect(h.frames.log.filter((e) => e === "refresh early")).toHaveLength(4);
-		expect(h.doCalls("terminal.keep")).toHaveLength(1);
+		expect(h.frames.log.filter((e) => e === "refresh early")).toHaveLength(before + 1);
 		release();
 		await h.flush();
+		expect(h.doCalls("terminal.park")).toHaveLength(2);
 	});
 
 	it("no viewer without a socket", async () => {
@@ -364,6 +397,26 @@ describe("HerdrViewers: frames", () => {
 		await h.startChild(rec("nosock"));
 		expect(h.runs()).toHaveLength(0);
 		expect(h.frames.registered).toEqual([]);
+	});
+
+	it("unregisters the target when the viewer start fails", async () => {
+		const h = setup();
+		h.runFailsFor.add("bad");
+		await h.startChild(rec("bad"));
+		expect(h.frames.log.filter((e) => e.endsWith(" bad"))).toEqual(["refresh bad", "register bad", "unregister bad"]);
+	});
+
+	it("unregisters the target when the viewer start rejects", async () => {
+		const h = setup();
+		h.cli.run = async () => {
+			throw new Error("exec down");
+		};
+		const r = rec("rej", { outputFile: "/s/rej.jsonl" });
+		h.viewers.onSubagentRunStarted(sub(r), "initial");
+		await h.flush();
+		h.tick();
+		await h.flush();
+		expect(h.frames.log).toContain("unregister rej");
 	});
 
 	it("unregisters a viewer whose terminal is gone", async () => {
@@ -379,8 +432,14 @@ describe("HerdrViewers: frames", () => {
 	it("closes the frame server after the terminals end", async () => {
 		const h = setup();
 		await h.startChild(rec("cl"));
-		await h.viewers.dispose();
-		expect(h.calls()).toContain("hc rm t10");
+		const release = h.cli.hold("hc rm");
+		const disposed = h.viewers.dispose();
+		await vi.waitFor(() => expect(h.frames.log).toContain("hc rm"));
+		await h.flush();
+		expect(h.frames.log).not.toContain("close");
+		release();
+		await disposed;
+		expect(h.frames.log.indexOf("close")).toBeGreaterThan(h.frames.log.indexOf("hc rm"));
 		expect(h.frames.log.at(-1)).toBe("close");
 	});
 });
@@ -434,7 +493,10 @@ describe("HerdrViewers.open", () => {
 		const h = setup();
 		const r = rec("old", { status: "error", outputFile: "/s/old.jsonl" });
 		expect(await h.viewers.open(liveEntry(r))).toBe(true);
-		expect(h.frames.registered[0]?.[1]).toMatchObject({ kind: "record" });
+		const target = h.frames.registered[0]?.[1];
+		expect(h.frames.registered[0]?.[0]).toBe("old");
+		expect(target?.kind === "record" && target.record).toBe(r);
+		expect(target?.kind === "record" && target.record.status).toBe("error");
 		expect(h.doCalls("terminal.peek")).toHaveLength(1);
 	});
 

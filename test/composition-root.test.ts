@@ -6,7 +6,7 @@
  * `test/session/provider-inheritance.test.ts`, but those tests pass whether or
  * not the root calls it — only this file fails if the wiring is removed.
  */
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -571,16 +571,27 @@ describe("composition root: Herdr viewers", () => {
 
   it("uses the navigator heading for viewers", async () => {
     vi.stubEnv("HC_TERMINAL_ID", "");
-    const { pi, fire } = makePi();
-    subagentsExtension(pi);
-    const ctx = tuiCtx();
-    await fire("session_start", {}, ctx);
-    await settle();
-    const input = vi.mocked(activateHerdrViewers).mock.calls.at(-1)?.[0];
-    expect(input?.theme).toBe(ctx.ui.theme);
-    const heading = input?.headingOf({ type: "general-purpose", description: "find it", context: "fork" } as never);
-    expect(heading).toMatchObject({ description: "find it", modeLabel: "fork" });
-    expect(heading?.name).toEqual(expect.any(String));
-    await fire("session_shutdown", {}, {});
+    const agentsDir = join(emptyAgentDir, "agents");
+    mkdirSync(agentsDir, { recursive: true });
+    const agentFile = join(agentsDir, "scout.md");
+    writeFileSync(agentFile, "---\nname: scout\ndisplay_name: Scout Prime\ndescription: d\n---\nbody\n");
+    try {
+      const { pi, fire } = makePi();
+      subagentsExtension(pi);
+      const themeSentinel = { sentinel: "theme" };
+      const ctx = tuiCtx();
+      ctx.ui.theme = themeSentinel;
+      vi.mocked(activateHerdrViewers).mockClear();
+      await fire("session_start", {}, ctx);
+      await settle();
+      expect(activateHerdrViewers).toHaveBeenCalledTimes(1);
+      const input = vi.mocked(activateHerdrViewers).mock.calls[0]?.[0];
+      expect(input?.theme).toBe(themeSentinel);
+      const heading = input?.headingOf({ type: "scout", description: "find it", context: "fork" } as never);
+      expect(heading).toEqual({ name: "Scout Prime", modeLabel: "fork", description: "find it" });
+      await fire("session_shutdown", {}, {});
+    } finally {
+      rmSync(agentFile, { force: true });
+    }
   });
 });
