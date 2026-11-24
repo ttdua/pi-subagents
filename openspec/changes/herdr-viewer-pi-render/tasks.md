@@ -12,10 +12,10 @@ Blocked by: none
 
 Blocked by: 1
 
-- [ ] 2.1 Rewrite `src/herdr/viewer.ts`: args `--socket --key --pid --parent-terminal`; connect, `hello`, `resize` on SIGWINCH; alternate screen, hidden cursor, SGR mouse; paint frames with synchronized output and `sanitizeFrameLine`; received line cap (design D2, D7)
-- [ ] 2.2 Input: raw mode; stdin through `InputFramer` into `wheel` and `input` messages
-- [ ] 2.3 Exit path: on socket close/error, line overflow, SIGTERM or dead Pi pid, restore screen, cursor, mouse and raw mode once, `hc keep <own> --off`, exit
-- [ ] 2.4 Rewrite `test/herdr/viewer.test.ts` (arg parsing, paint output, terminal restore on a fake TTY stdin) and `test/herdr/viewer.integration.test.ts` (real viewer against a loopback Unix socket in a temp dir: hello, sanitized paint, input and wheel forwarding, every exit trigger restores and exits, pid death within 2 s, keep off, starts with no Pi packages resolvable)
+- [x] 2.1 Rewrite `src/herdr/viewer.ts`: args `--socket --key --pid --parent-terminal`; connect, `hello`, `resize` on SIGWINCH; alternate screen, hidden cursor, SGR mouse; paint frames with synchronized output and `sanitizeFrameLine`; received line cap (design D2, D7)
+- [x] 2.2 Input: raw mode; stdin through `InputFramer` into `wheel` and `input` messages
+- [x] 2.3 Exit path: on socket close/error, line overflow, SIGTERM or dead Pi pid, restore screen, cursor, mouse and raw mode once, `hc keep <own> --off`, exit
+- [x] 2.4 Rewrite `test/herdr/viewer.test.ts` (arg parsing, paint output, terminal restore on a fake TTY stdin) and `test/herdr/viewer.integration.test.ts` (real viewer against a loopback Unix socket in a temp dir: hello, sanitized paint, input and wheel forwarding, every exit trigger restores and exits, pid death within 2 s, keep off, starts with no Pi packages resolvable)
 
 ## 3. Transcript pane fill layout
 
