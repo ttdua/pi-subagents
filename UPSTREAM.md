@@ -289,3 +289,7 @@ Outside the table below, the fork also changes repository files that upstream ke
 | `test/herdr/viewer-renderer.test.ts` | add | Tests for the viewer renderer. |
 | `src/herdr/frame-server.ts` | add | Unix-socket frame server connecting Herdr viewer processes to their renderers. |
 | `test/herdr/frame-server.test.ts` | add | Tests for the frame server over real sockets. |
+| `docs/decisions/0016-herdr-viewer-renders-in-pi.md` | seam | ADR for Pi-rendered Herdr viewers over a Unix socket; supersedes ADR 0015's plain-text rendering. |
+| `docs/decisions/0015-subagent-viewers-in-a-herdr-column.md` | edit | Status and consequences point to ADR 0016. |
+| `README.md` (Herdr rendering) | edit | `Herdr` section: Pi-rendered viewer, scrolling, ADR 0016 link. |
+| `CHANGELOG.md` (Herdr rendering) | edit | Entry for Pi-rendered Herdr viewers. |
