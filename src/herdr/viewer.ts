@@ -136,19 +136,43 @@ function safeWrite(text: string): void {
 	}
 }
 
-function send(socket: net.Socket, message: ViewerMessage): void {
-	if (!socket.destroyed) socket.write(encodeMessage(message));
+type HelloMessage = Extract<ViewerMessage, { type: "hello" }>;
+
+export interface Sender {
+	hello(message: HelloMessage): void;
+	send(message: ViewerMessage): void;
 }
 
-function forwardInput(socket: net.Socket): void {
+/**
+ * Keeps `hello` first on the channel: messages sent before it are queued and flushed after it in order.
+ * Queued resizes are dropped, since `hello` carries the size current when it is sent.
+ */
+export function createSender(writeLine: (line: string) => void): Sender {
+	let ready = false;
+	const queued: ViewerMessage[] = [];
+	return {
+		hello(message) {
+			if (ready) return;
+			ready = true;
+			writeLine(encodeMessage(message));
+			for (const m of queued.splice(0)) writeLine(encodeMessage(m));
+		},
+		send(message) {
+			if (ready) writeLine(encodeMessage(message));
+			else if (message.type !== "resize") queued.push(message);
+		},
+	};
+}
+
+function forwardInput(sender: Sender): void {
 	const framer = new InputFramer();
 	const stdin = process.stdin;
 	stdin.setEncoding("utf8");
 	stdin.on("error", () => {});
 	stdin.on("data", (chunk: string) => {
 		for (const event of framer.push(chunk)) {
-			if (event.type === "wheel") send(socket, event);
-			else for (const data of chunkInput(event.data)) send(socket, { type: "input", data });
+			if (event.type === "wheel") sender.send(event);
+			else for (const data of chunkInput(event.data)) sender.send({ type: "input", data });
 		}
 	});
 	stdin.resume();
@@ -174,15 +198,20 @@ function main(argv: string[]): void {
 		keepOff: () => keepOwnTerminalOff(args.parentTerminal),
 		exit: (code) => process.exit(code),
 	});
+	// Async write errors (EPIPE) arrive as events; the listener stays attached so RESTORE's own error is handled too.
+	process.stdout.on("error", exit);
 	safeWrite(ENTER);
 	enableRawMode(process.stdin);
 	const socket = net.createConnection(args.socket);
-	socket.on("connect", () => send(socket, { type: "hello", key: args.key, ...size() }));
+	const sender = createSender((line) => {
+		if (!socket.destroyed) socket.write(line);
+	});
+	socket.on("connect", () => sender.hello({ type: "hello", key: args.key, ...size() }));
 	socket.on("close", exit);
 	socket.on("error", exit);
 	paintIncoming(socket, exit);
-	forwardInput(socket);
-	process.on("SIGWINCH", () => send(socket, { type: "resize", ...size() }));
+	forwardInput(sender);
+	process.on("SIGWINCH", () => sender.send({ type: "resize", ...size() }));
 	process.on("SIGTERM", exit);
 	setInterval(() => {
 		if (!isProcessAlive(args.pid)) exit();

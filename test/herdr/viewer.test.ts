@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createExit, enableRawMode, paintFrame, parseArgs, RESTORE } from "#src/herdr/viewer";
+import { createExit, createSender, enableRawMode, paintFrame, parseArgs, RESTORE } from "#src/herdr/viewer";
 
 describe("parseArgs", () => {
 	it("parses the full viewer CLI", () => {
@@ -78,6 +78,51 @@ describe("createExit", () => {
 			exit: (c) => void codes.push(c),
 		})();
 		expect(codes).toEqual([0]);
+	});
+});
+
+describe("createSender", () => {
+	const hello = { type: "hello", key: "k", cols: 80, rows: 24 } as const;
+	const decode = (lines: string[]) => lines.map((l) => JSON.parse(l));
+
+	it("writes nothing before hello", () => {
+		const lines: string[] = [];
+		createSender((l) => void lines.push(l)).send({ type: "input", data: "a" });
+		expect(lines).toEqual([]);
+	});
+
+	it("writes hello first, then queued input in order", () => {
+		const lines: string[] = [];
+		const sender = createSender((l) => void lines.push(l));
+		sender.send({ type: "input", data: "a" });
+		sender.send({ type: "wheel", delta: 3 });
+		sender.send({ type: "input", data: "b" });
+		sender.hello(hello);
+		sender.send({ type: "input", data: "c" });
+		expect(decode(lines)).toEqual([
+			hello,
+			{ type: "input", data: "a" },
+			{ type: "wheel", delta: 3 },
+			{ type: "input", data: "b" },
+			{ type: "input", data: "c" },
+		]);
+	});
+
+	it("drops resizes queued before hello, which carries the current size", () => {
+		const lines: string[] = [];
+		const sender = createSender((l) => void lines.push(l));
+		sender.send({ type: "resize", cols: 10, rows: 5 });
+		sender.hello(hello);
+		sender.send({ type: "resize", cols: 90, rows: 30 });
+		expect(decode(lines)).toEqual([hello, { type: "resize", cols: 90, rows: 30 }]);
+	});
+
+	it("writes hello only once", () => {
+		const lines: string[] = [];
+		const sender = createSender((l) => void lines.push(l));
+		sender.hello(hello);
+		sender.hello(hello);
+		expect(lines).toHaveLength(1);
 	});
 });
 
