@@ -261,16 +261,17 @@ Creating and editing agent definitions is not a command — write an agent `.md`
 
 ## Herdr
 
-Inside [Herdr](https://herdr.dev), each subagent gets a read-only viewer: a column of terminals to the right of Pi that follows the child's transcript as plain text.
+Inside [Herdr](https://herdr.dev), each subagent gets a read-only viewer: a column of terminals to the right of Pi that shows the child's transcript rendered like `/subagents:sessions` (markdown, tool renderers, streaming).
 
 - **Column:** at most 4 viewers are shown, the first right of Pi and the rest stacked below it. A fifth waits in Herdr's sidebar under Pi and moves in when a slot frees. Focus stays where it was.
 - **Finished children:** a viewer prints `done (<status>)` and is hidden, not closed. It is still reachable from the sidebar and from `/subagents:sessions`; a resumed child's viewer returns to the column.
-- **Read-only:** a viewer discards all input.
+- **Scrolling:** scroll keys and the mouse wheel scroll a viewer; `Esc` and `q` do nothing.
+- **Read-only:** a viewer sends nothing to the child.
 - **Detection:** active only in the interactive TUI, in a terminal that Herdr shows in a tab, with `hc` and `herdr-app` on `PATH` and reachable. Elsewhere (child sessions, print, JSON and RPC modes, other terminals) nothing changes.
 - **`/subagents:sessions` inside Herdr:** a running agent's viewer is focused; a finished or waiting agent opens as a popup. If Herdr fails, the command opens the usual in-TUI pane. The fleet list's `Enter` always opens the in-TUI pane.
 - **Cleanup:** viewers end when the session shuts down or reloads, and also when Pi's process exits.
 
-The viewer needs Bun or Node 22.18 or later; otherwise it runs with `node` from `PATH`. A compiled single-binary Pi without `node`, or an install under `node_modules` (Node does not strip types there), cannot run it, and then there is no viewer. There is no setting to turn it off yet. See [ADR 0015](./docs/decisions/0015-subagent-viewers-in-a-herdr-column.md).
+The viewer needs Bun or Node 22.18 or later; otherwise it runs with `node` from `PATH`. A compiled single-binary Pi without `node`, or an install under `node_modules` (Node does not strip types there), cannot run it, and then there is no viewer. There is no setting to turn it off yet. See [ADR 0015](./docs/decisions/0015-subagent-viewers-in-a-herdr-column.md) and [ADR 0016](./docs/decisions/0016-herdr-viewer-renders-in-pi.md).
 
 ## Turn Budget
 
