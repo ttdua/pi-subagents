@@ -29,10 +29,10 @@ Blocked by: none
 
 Blocked by: none
 
-- [ ] 4.1 Add `src/herdr/viewer-source.ts`: `followedFileSource` (300 ms unref'd poll on size+mtime while subscribed, failed read not recorded, missing file → empty) over `fileSnapshotSource` (design D3)
-- [ ] 4.2 Add `SwitchableSource` to `viewer-source.ts`: inner `liveSource` or `followedFileSource` by `record.isSessionReady()`, 1000 ms unref'd readiness probe while subscribed, `refresh()`, one `undefined` event on a kind switch; snapshot targets always file (design D3)
-- [ ] 4.3 Add `src/herdr/deferred-source.ts`: `DeferredSource` wrapping a `TranscriptSource`, queueing its events (collapsing `message_update`; past 256 events the queue is dropped and `flush()` reports `resync`; the latest in-flight assistant event is kept apart and delivered after a resync) and delivering them only during the frame turn through `flush()` or `redeliverInFlight()` (design D3)
-- [ ] 4.4 Tests `test/herdr/viewer-source.test.ts` and `test/herdr/deferred-source.test.ts`: file appears later, unparsable line skipped, unreadable then readable with same size/mtime, timer stops on unsubscribe, live chosen when ready, switch live → file on release and file → live on resume, no event delivered before `flush`, collapsing and overflow
+- [x] 4.1 Add `src/herdr/viewer-source.ts`: `followedFileSource` (300 ms unref'd poll on size+mtime while subscribed, failed read not recorded, missing file → empty) over `fileSnapshotSource` (design D3)
+- [x] 4.2 Add `SwitchableSource` to `viewer-source.ts`: inner `liveSource` or `followedFileSource` by `record.isSessionReady()`, 1000 ms unref'd readiness probe while subscribed, `refresh()`, one `undefined` event on a kind switch; snapshot targets always file (design D3)
+- [x] 4.3 Add `src/herdr/deferred-source.ts`: `DeferredSource` wrapping a `TranscriptSource`, queueing its events (collapsing `message_update`; past 256 events the queue is dropped and `flush()` reports `resync`; the latest in-flight assistant event is kept apart and delivered after a resync) and delivering them only during the frame turn through `flush()` or `redeliverInFlight()` (design D3)
+- [x] 4.4 Tests `test/herdr/viewer-source.test.ts` and `test/herdr/deferred-source.test.ts`: file appears later, unparsable line skipped, unreadable then readable with same size/mtime, timer stops on unsubscribe, live chosen when ready, switch live → file on release and file → live on resume, no event delivered before `flush`, collapsing and overflow
 
 ## 5. Headless rendering host
 
