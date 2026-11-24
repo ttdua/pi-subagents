@@ -26,7 +26,8 @@ interface ConnectionHost {
 	targetOf(key: string): ViewerTarget | undefined;
 	/** Called once a hello is accepted; replaces any older connection for the key. */
 	claim(key: string, connection: ViewerConnection): void;
-	release(key: string, connection: ViewerConnection): void;
+	/** Forgets a closed connection; `key` is set only when it had claimed one. */
+	release(key: string | undefined, connection: ViewerConnection): void;
 	createRenderer: FrameServerOptions["createRenderer"];
 }
 
@@ -61,9 +62,13 @@ class ViewerConnection {
 		this.socket.destroy();
 		const renderer = this.renderer;
 		this.renderer = undefined;
-		if (this.key !== undefined) this.host.release(this.key, this);
+		this.host.release(this.key, this);
+		if (renderer) this.disposeQuietly(renderer);
+	}
+
+	private disposeQuietly(renderer: ViewerRenderer): void {
 		try {
-			renderer?.dispose();
+			renderer.dispose();
 		} catch (err) {
 			debugLog("viewer renderer dispose", err);
 		}
@@ -131,8 +136,15 @@ class ViewerConnection {
 		}
 		this.key = key;
 		this.host.claim(key, this);
-		this.renderer = this.host.createRenderer(target, (lines) => this.send(lines));
-		this.renderer.resize(cols, rows);
+		if (this.closed) return;
+		const renderer = this.host.createRenderer(target, (lines) => this.send(lines));
+		if (this.closed) {
+			// Closed re-entrantly (e.g. unregister) while the factory ran: nothing owns this renderer.
+			this.disposeQuietly(renderer);
+			return;
+		}
+		this.renderer = renderer;
+		renderer.resize(cols, rows);
 	}
 
 	/** Never throws: a failed write closes only this connection. */
@@ -162,7 +174,7 @@ class ViewerConnection {
 	}
 }
 
-export class FrameServer implements ConnectionHost {
+export class FrameServer {
 	private readonly targets = new Map<string, ViewerTarget>();
 	private readonly connections = new Map<string, ViewerConnection>();
 	private readonly all = new Set<ViewerConnection>();
@@ -170,6 +182,12 @@ export class FrameServer implements ConnectionHost {
 	private server: Server | undefined;
 	private dir: string | undefined;
 	private shut = false;
+	private readonly host: ConnectionHost = {
+		targetOf: (key) => this.targets.get(key),
+		claim: (key, connection) => this.claim(key, connection),
+		release: (key, connection) => this.release(key, connection),
+		createRenderer: (target, send) => this.o.createRenderer(target, send),
+	};
 
 	constructor(private readonly o: FrameServerOptions) {}
 
@@ -194,29 +212,23 @@ export class FrameServer implements ConnectionHost {
 
 	async close(): Promise<void> {
 		this.shut = true;
+		// An in-flight listen notices `shut` itself, closes its server and removes its directory.
+		await this.listening?.catch(() => undefined);
 		for (const connection of [...this.all]) connection.close();
 		this.connections.clear();
-		const server = this.server;
-		this.server = undefined;
-		if (server?.listening) await new Promise<void>((resolve) => server.close(() => resolve()));
+		await this.closeServer();
 		if (this.dir !== undefined) rmSync(this.dir, { recursive: true, force: true });
 		this.dir = undefined;
 	}
 
-	createRenderer: FrameServerOptions["createRenderer"] = (target, send) => this.o.createRenderer(target, send);
-
-	targetOf(key: string): ViewerTarget | undefined {
-		return this.targets.get(key);
-	}
-
-	claim(key: string, connection: ViewerConnection): void {
+	private claim(key: string, connection: ViewerConnection): void {
 		const older = this.connections.get(key);
 		this.connections.set(key, connection);
 		older?.close();
 	}
 
-	release(key: string, connection: ViewerConnection): void {
-		if (this.connections.get(key) === connection) this.connections.delete(key);
+	private release(key: string | undefined, connection: ViewerConnection): void {
+		if (key !== undefined && this.connections.get(key) === connection) this.connections.delete(key);
 		this.all.delete(connection);
 	}
 
@@ -234,6 +246,11 @@ export class FrameServer implements ConnectionHost {
 				return undefined;
 			}
 			await this.bind(path);
+			if (this.shut) {
+				await this.closeServer();
+				this.cleanup();
+				return undefined;
+			}
 			return path;
 		} catch (err) {
 			debugLog("frame server listen", err);
@@ -242,18 +259,24 @@ export class FrameServer implements ConnectionHost {
 		}
 	}
 
+	private async closeServer(): Promise<void> {
+		const server = this.server;
+		this.server = undefined;
+		if (server?.listening) await new Promise<void>((resolve) => server.close(() => resolve()));
+	}
+
 	private bind(path: string): Promise<void> {
 		return new Promise((resolve, reject) => {
 			const server = createServer((socket) => {
-				const connection = new ViewerConnection(socket, this);
+				const connection = new ViewerConnection(socket, this.host);
 				this.all.add(connection);
 			});
 			server.unref();
+			this.server = server;
 			server.once("error", reject);
 			server.listen(path, () => {
 				server.off("error", reject);
 				server.on("error", (err) => debugLog("frame server error", err));
-				this.server = server;
 				resolve();
 			});
 		});

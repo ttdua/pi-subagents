@@ -1,10 +1,11 @@
-import { existsSync, mkdtempSync, rmSync, statSync } from "node:fs";
+import { existsSync, mkdtempSync, readdirSync, rmSync, statSync } from "node:fs";
 import { createConnection, type Socket } from "node:net";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { getMarkdownTheme, initTheme, type ToolDefinition } from "@earendil-works/pi-coding-agent";
 import { KeybindingsManager, TUI_KEYBINDINGS } from "@earendil-works/pi-tui";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import { debugLog } from "#src/debug";
 import { encodeMessage, MessageSplitter, type PiMessage, type ViewerMessage } from "#src/herdr/frame-protocol";
 import { FrameServer } from "#src/herdr/frame-server";
 import { ViewerRenderer } from "#src/herdr/viewer-renderer";
@@ -12,6 +13,8 @@ import type { ViewerTarget } from "#src/herdr/viewer-source";
 import type { SessionMessage } from "#src/types";
 import type { EntryHeading, NavigableSubagent } from "#src/ui/session-navigation";
 import { makeNavigable } from "#test/helpers/make-navigable";
+
+vi.mock("#src/debug", async (importOriginal) => ({ ...(await importOriginal<typeof import("#src/debug")>()), debugLog: vi.fn() }));
 
 beforeAll(() => initTheme(undefined, false));
 
@@ -78,6 +81,13 @@ const until = async (cond: () => boolean, ms = 3000): Promise<void> => {
 		await new Promise((r) => setTimeout(r, 5));
 	}
 };
+/** Server-side sockets, captured through the private net server (test-only). */
+function serverSockets(server: FrameServer): Socket[] {
+	const sockets: Socket[] = [];
+	(server as unknown as { server: { on(e: string, f: (s: Socket) => void): void } }).server.on("connection", (s) => sockets.push(s));
+	return sockets;
+}
+const connectionCount = (server: FrameServer) => (server as unknown as { all: Set<unknown> }).all.size;
 const settle = () => new Promise((r) => setTimeout(r, 60));
 
 async function hello(server: FrameServer, key: string, cols = 80, rows = 24): Promise<Client> {
@@ -100,7 +110,7 @@ describe("FrameServer", () => {
 		const server = makeServer(fakeFactory, root);
 		server.register("a", targetOf());
 		expect(existsSync(root) && statSync(root).isDirectory()).toBe(true);
-		expect(require("node:fs").readdirSync(root)).toEqual([]);
+		expect(readdirSync(root)).toEqual([]);
 	});
 
 	it("creates a 0700 directory", async () => {
@@ -164,11 +174,20 @@ describe("FrameServer", () => {
 	it("keeps one pending frame for a blocked reader", async () => {
 		const server = makeServer();
 		server.register("a", targetOf());
+		await server.socketPath();
+		const sockets = serverSockets(server);
 		const client = await hello(server, "a");
 		await until(() => fakes.length === 1);
+		const [serverSide] = sockets;
 		client.socket.pause();
 		const big = "x".repeat(256 * 1024);
-		for (let i = 0; i < 1000; i++) fakes[0].send([big, String(i)]);
+		const frameBytes = big.length;
+		let peak = 0;
+		for (let i = 0; i < 1000; i++) {
+			fakes[0].send([big, String(i)]);
+			peak = Math.max(peak, serverSide.writableLength);
+		}
+		expect(peak).toBeLessThan(2 * frameBytes);
 		client.socket.resume();
 		await until(() => (client.messages.at(-1)?.lines[1] ?? "") === "999");
 		expect(client.messages.length).toBeLessThan(10);
@@ -222,6 +241,29 @@ describe("FrameServer", () => {
 		a.socket.destroy();
 		await until(() => fakes[0].dispose.mock.calls.length === 1);
 		expect(() => fakes[0].send(["x"])).not.toThrow();
+		fakes[1].send(["y"]);
+		await until(() => b.messages.length === 1);
+		expect(fakes[1].dispose).not.toHaveBeenCalled();
+	});
+
+	it("closes the viewer whose write fails", async () => {
+		const server = makeServer();
+		server.register("a", targetOf());
+		server.register("b", targetOf());
+		await server.socketPath();
+		const sockets = serverSockets(server);
+		await hello(server, "a");
+		const b = await hello(server, "b");
+		await until(() => fakes.length === 2 && sockets.length === 2);
+		vi.mocked(debugLog).mockClear();
+		sockets[0].write = ((_d: unknown, cb?: (e?: Error) => void) => {
+			cb?.(new Error("EPIPE"));
+			return false;
+		}) as never;
+		fakes[0].send(["x"]);
+		expect(debugLog).toHaveBeenCalledWith("viewer socket write", expect.any(Error));
+		expect(sockets[0].destroyed).toBe(true);
+		expect(fakes[0].dispose).toHaveBeenCalledTimes(1);
 		fakes[1].send(["y"]);
 		await until(() => b.messages.length === 1);
 		expect(fakes[1].dispose).not.toHaveBeenCalled();
@@ -286,6 +328,44 @@ describe("FrameServer", () => {
 		b.send({ type: "resize", cols: 70, rows: 20 });
 		await until(() => b.messages.length > bBefore);
 		expect(b.closed).toBe(false);
+	});
+
+	it("shuts down an in-flight listen", async () => {
+		const root = mkdtempSync(join(tmpdir(), "hf-"));
+		const server = makeServer(fakeFactory, root);
+		const path = server.socketPath();
+		await server.close();
+		expect(await path).toBeUndefined();
+		expect(readdirSync(root)).toEqual([]);
+		expect((server as unknown as { server: unknown }).server).toBeUndefined();
+		expect(await server.socketPath()).toBeUndefined();
+	});
+
+	it("forgets connections that never said hello", async () => {
+		const server = makeServer();
+		await server.socketPath();
+		const sockets = serverSockets(server);
+		for (let i = 0; i < 5; i++) {
+			const c = await hello(server, "unknown");
+			await until(() => c.closed);
+		}
+		await until(() => sockets.length === 5 && connectionCount(server) === 0);
+	});
+
+	it("disposes a renderer when unregister runs inside the factory", async () => {
+		const disposed = vi.fn();
+		const resize = vi.fn();
+		let server: FrameServer;
+		const factory = (_t: ViewerTarget, _send: (l: string[]) => void) => {
+			server.unregister("a");
+			return { resize, input: vi.fn(), wheel: vi.fn(), refresh: vi.fn(), dispose: disposed } as unknown as ViewerRenderer;
+		};
+		server = makeServer(factory);
+		server.register("a", targetOf());
+		const client = await hello(server, "a");
+		await until(() => client.closed);
+		expect(disposed).toHaveBeenCalledTimes(1);
+		expect(resize).not.toHaveBeenCalled();
 	});
 
 	it("refresh reaches the renderer", async () => {
