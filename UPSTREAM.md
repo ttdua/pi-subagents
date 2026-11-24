@@ -283,3 +283,6 @@ Outside the table below, the fork also changes repository files that upstream ke
 | `src/herdr/deferred-source.ts` | add | Transcript source wrapper holding events until a frame turn, with overflow resync. |
 | `test/herdr/viewer-source.test.ts` | add | Tests for the followed-file and switchable sources. |
 | `test/herdr/deferred-source.test.ts` | add | Tests for the deferred source. |
+| `src/herdr/headless-tui.ts` | add | Terminal-less TUI surface for rendering the transcript pane into frames. |
+| `src/herdr/viewer-renderer.ts` | add | Frame-scheduled renderer producing Herdr viewer frames from the transcript pane. |
+| `test/herdr/viewer-renderer.test.ts` | add | Tests for the viewer renderer. |
