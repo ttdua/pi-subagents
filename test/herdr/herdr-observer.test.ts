@@ -69,13 +69,13 @@ class GatedCli implements HerdrCli {
 		};
 	}
 
-	/** Receives `hc run` / `hc rm` as they complete, to order them against frame calls. */
+	/** Receives `hc run` / `hc rm` the moment the CLI is called, before it answers, to order them against frame calls. */
 	onCall: ((entry: string) => void) | undefined;
 
 	async run(command: HerdrCommand, args: readonly string[]): Promise<HerdrResult> {
 		const sub = command === "herdr-app" && args[0] === "do" ? args[1] : args[0];
-		const result = await this.inner.run(command, args);
 		if (command === "hc" && (sub === "run" || sub === "rm")) this.onCall?.(`hc ${sub}`);
+		const result = await this.inner.run(command, args);
 		const hold = this.holds.get(`${command} ${sub}`);
 		if (hold !== undefined) await hold;
 		return result;
