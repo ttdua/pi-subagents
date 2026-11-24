@@ -148,6 +148,22 @@ describe("frame protocol", () => {
 		}
 	});
 
+	it("emits wheel only for press reports and swallows wheel releases", () => {
+		expect(new InputFramer().push("\x1b[<64;3;4m\x1b[<65;3;4m")).toEqual([]);
+		expect(new InputFramer().push("\x1b[<64;3;4M\x1b[<65;3;4M")).toEqual([
+			{ type: "wheel", delta: -3 },
+			{ type: "wheel", delta: 3 },
+		]);
+	});
+
+	it("flush returns a held prefix once and clears it", () => {
+		const framer = new InputFramer();
+		expect(framer.push("\x1b")).toEqual([]);
+		expect(framer.flush()).toBe("\x1b");
+		expect(framer.flush()).toBe("");
+		expect(framer.push("j")).toEqual([{ type: "input", data: "j" }]);
+	});
+
 	it("drops non-wheel mouse reports", () => {
 		expect(new InputFramer().push("\x1b[<0;3;4M\x1b[<0;3;4m")).toEqual([]);
 	});

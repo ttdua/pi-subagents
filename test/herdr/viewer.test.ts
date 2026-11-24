@@ -1,5 +1,57 @@
-import { describe, expect, it } from "vitest";
-import { createExit, createSender, enableRawMode, paintFrame, parseArgs, RESTORE } from "#src/herdr/viewer";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import type { ViewerMessage } from "#src/herdr/frame-protocol";
+import {
+	createExit,
+	createInputForwarder,
+	createSender,
+	ESCAPE_FLUSH_MS,
+	enableRawMode,
+	paintFrame,
+	parseArgs,
+	RESTORE,
+} from "#src/herdr/viewer";
+
+describe("createInputForwarder", () => {
+	afterEach(() => vi.useRealTimers());
+
+	const forwarder = () => {
+		vi.useFakeTimers();
+		const sent: ViewerMessage[] = [];
+		const input = createInputForwarder({ hello: () => {}, send: (m) => sent.push(m) });
+		return { input, sent };
+	};
+
+	it("forwards a lone Escape alone after a short timeout, then the next key alone", () => {
+		const { input, sent } = forwarder();
+		input.push("\x1b");
+		expect(sent).toEqual([]);
+		vi.advanceTimersByTime(ESCAPE_FLUSH_MS);
+		expect(sent).toEqual([{ type: "input", data: "\x1b" }]);
+		input.push("j");
+		expect(sent).toEqual([
+			{ type: "input", data: "\x1b" },
+			{ type: "input", data: "j" },
+		]);
+	});
+
+	it("completes a split sequence before the timeout without flushing", () => {
+		const { input, sent } = forwarder();
+		input.push("\x1b[<64;3");
+		vi.advanceTimersByTime(ESCAPE_FLUSH_MS - 1);
+		input.push(";4M");
+		vi.advanceTimersByTime(ESCAPE_FLUSH_MS);
+		expect(sent).toEqual([{ type: "wheel", delta: -3 }]);
+	});
+
+	it("dispose clears the pending flush timer", () => {
+		const { input, sent } = forwarder();
+		input.push("\x1b");
+		input.dispose();
+		expect(vi.getTimerCount()).toBe(0);
+		vi.advanceTimersByTime(ESCAPE_FLUSH_MS);
+		expect(sent).toEqual([]);
+	});
+});
 
 describe("parseArgs", () => {
 	it("parses the full viewer CLI", () => {

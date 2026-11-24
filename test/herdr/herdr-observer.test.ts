@@ -710,6 +710,22 @@ describe("HerdrViewers.dispose", () => {
 		expect(h.doCalls("terminal.keep")).toEqual([]);
 		expect(h.registry.byKey("slow")).toBeUndefined();
 	});
+
+	it("skips the unnamed retry when disposed during the named start", async () => {
+		const h = setup();
+		h.runFailsFor.add("held");
+		const release = h.cli.hold("hc run");
+		const r = rec("held", { outputFile: "/s/held.jsonl" });
+		h.viewers.onSubagentRunStarted(sub(r), "initial");
+		await h.flush();
+		h.tick();
+		await vi.waitFor(() => expect(h.runs()).toHaveLength(1));
+		const disposed = h.viewers.dispose();
+		release();
+		await disposed;
+		await new Promise((resolve) => setTimeout(resolve, 20));
+		expect(h.runs()).toHaveLength(1);
+	});
 });
 
 describe("HerdrViewers: jobs in flight when dispose starts", () => {

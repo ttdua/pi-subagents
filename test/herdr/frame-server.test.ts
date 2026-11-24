@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync, readdirSync, rmSync, statSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, statSync, symlinkSync } from "node:fs";
 import { createConnection, type Socket } from "node:net";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -407,6 +407,28 @@ describe("FrameServer", () => {
 		server.unregister("a");
 		expect(fakes[0].dispose).toHaveBeenCalledTimes(1);
 		await until(() => client.closed);
+	});
+
+	it("refuses a group/other-writable socket root", async () => {
+		const root = mkdtempSync(join(tmpdir(), "hf-"));
+		chmodSync(root, 0o777);
+		const server = makeServer(fakeFactory, root);
+		vi.mocked(debugLog).mockClear();
+		expect(await server.socketPath()).toBeUndefined();
+		expect(readdirSync(root)).toEqual([]);
+		expect(debugLog).toHaveBeenCalledWith("frame server unsafe socket root", root);
+	});
+
+	it("refuses a symlinked socket root", async () => {
+		const base = mkdtempSync(join(tmpdir(), "hf-"));
+		roots.push(base);
+		const real = join(base, "real");
+		mkdirSync(real, { mode: 0o700 });
+		const link = join(base, "link");
+		symlinkSync(real, link);
+		const server = makeServer(fakeFactory, link);
+		expect(await server.socketPath()).toBeUndefined();
+		expect(readdirSync(real)).toEqual([]);
 	});
 
 	it("reports no socket when the path is too long", async () => {

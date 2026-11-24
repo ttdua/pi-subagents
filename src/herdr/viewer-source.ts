@@ -176,7 +176,10 @@ export class SwitchableSource implements TranscriptSource {
 			timers,
 			READINESS_PROBE_MS,
 			() => this.refresh(),
-			() => this.attach(),
+			() => {
+				this.attach();
+				this.seedInFlight();
+			},
 			() => this.detach(),
 		);
 	}
@@ -192,8 +195,10 @@ export class SwitchableSource implements TranscriptSource {
 		this.detach();
 		this.chosen = next;
 		this.inner = this.build(next);
-		if (this.listeners.active) this.attach();
+		if (!this.listeners.active) return;
+		this.attach();
 		this.listeners.emit(undefined);
+		this.seedInFlight();
 	}
 
 	getMessages() {
@@ -225,6 +230,17 @@ export class SwitchableSource implements TranscriptSource {
 
 	private attach(): void {
 		this.unsubscribeInner ??= this.inner.subscribe((event) => this.listeners.emit(event));
+	}
+
+	/**
+	 * A subscription only sees future events: replay the live record's partial assistant
+	 * message as a `message_start`, so a viewer attached mid-stream shows it before the next delta.
+	 */
+	private seedInFlight(): void {
+		if (this.chosen.kind !== "live" || this.target.kind !== "record") return;
+		const message = this.target.record.inFlightMessage?.();
+		if (message?.role !== "assistant") return;
+		this.listeners.emit({ type: "message_start", message } as AgentSessionEvent);
 	}
 
 	private detach(): void {

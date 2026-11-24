@@ -48,6 +48,11 @@ export class DeferredSource implements TranscriptSource {
 		};
 	}
 
+	/** Whether events (or an overflow) wait for `flush()`, e.g. after a frame turn aborted before it. */
+	get pending(): boolean {
+		return this.queue.length > 0 || this.overflowed;
+	}
+
 	/** Deliver queued events in order, or report that the queue overflowed and was dropped. */
 	flush(): { resync: boolean } {
 		const queued = this.queue;

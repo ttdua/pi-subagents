@@ -272,7 +272,7 @@ export function sanitizeFrameLine(line: string): string {
 	return out;
 }
 
-const SGR_MOUSE_REPORT = /\x1b\[<([0-9]+);[0-9]+;[0-9]+[Mm]/g;
+const SGR_MOUSE_REPORT = /\x1b\[<([0-9]+);[0-9]+;[0-9]+([Mm])/g;
 const PARTIAL_MOUSE_REPORT = /\x1b(?:\[(?:<[0-9;]*)?)?$/;
 
 function wheelEvent(button: string): InputEvent | undefined {
@@ -292,7 +292,8 @@ function eventsOf(text: string): InputEvent[] {
 	for (const match of text.matchAll(SGR_MOUSE_REPORT)) {
 		const index = match.index ?? 0;
 		pushInput(events, text.slice(last, index));
-		const wheel = wheelEvent(match[1]);
+		// Only a press (`M`) scrolls; a release (`m`) is swallowed like any other mouse report.
+		const wheel = match[2] === "M" ? wheelEvent(match[1]) : undefined;
 		if (wheel) events.push(wheel);
 		last = index + match[0].length;
 	}
@@ -313,5 +314,16 @@ export class InputFramer {
 			return eventsOf(text.slice(0, partial.index));
 		}
 		return eventsOf(text);
+	}
+
+	/** The held incomplete prefix (e.g. a lone Escape), cleared; the caller forwards it as input. */
+	flush(): string {
+		const held = this.pending;
+		this.pending = "";
+		return held;
+	}
+
+	get holding(): boolean {
+		return this.pending !== "";
 	}
 }

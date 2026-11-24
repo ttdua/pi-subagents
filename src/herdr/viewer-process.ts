@@ -37,11 +37,14 @@ export class ViewerProcesses {
 		private readonly opts: ViewerProcessOptions,
 	) {}
 
-	/** The new terminal's address, or `undefined` when `hc run` fails twice (once with, once without a name). */
-	async start(l: ViewerLaunch): Promise<string | undefined> {
+	/**
+	 * The new terminal's address, or `undefined` when `hc run` fails twice (once with, once without a name).
+	 * The unnamed retry runs only while `shouldContinue()` holds (e.g. the caller was not disposed).
+	 */
+	async start(l: ViewerLaunch, shouldContinue: () => boolean = () => true): Promise<string | undefined> {
 		const program = this.program(l);
 		const named = await this.run(["--name", viewerName(l.agentType, l.key), "--cwd", l.cwd], program);
-		if (named !== undefined) return named;
+		if (named !== undefined || !shouldContinue()) return named;
 		return this.run(["--cwd", l.cwd], program);
 	}
 

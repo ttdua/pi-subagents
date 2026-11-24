@@ -164,18 +164,54 @@ export function createSender(writeLine: (line: string) => void): Sender {
 	};
 }
 
-function forwardInput(sender: Sender): void {
+/** How long a held prefix (a lone Escape) waits for the rest of a sequence before it is sent alone. */
+export const ESCAPE_FLUSH_MS = 50;
+
+export interface InputForwarder {
+	push(chunk: string): void;
+	dispose(): void;
+}
+
+/**
+ * Frames stdin chunks into input and wheel messages. A prefix the framer holds is sent alone
+ * after `ESCAPE_FLUSH_MS`, so a lone Escape never merges with the next key (read as Alt+key).
+ */
+export function createInputForwarder(sender: Sender): InputForwarder {
 	const framer = new InputFramer();
+	let timer: ReturnType<typeof setTimeout> | undefined;
+	const sendInput = (text: string) => {
+		for (const data of chunkInput(text)) sender.send({ type: "input", data });
+	};
+	const clear = () => {
+		if (timer !== undefined) clearTimeout(timer);
+		timer = undefined;
+	};
+	return {
+		push(chunk) {
+			clear();
+			for (const event of framer.push(chunk)) {
+				if (event.type === "wheel") sender.send(event);
+				else sendInput(event.data);
+			}
+			if (!framer.holding) return;
+			timer = setTimeout(() => {
+				timer = undefined;
+				sendInput(framer.flush());
+			}, ESCAPE_FLUSH_MS);
+			timer.unref?.();
+		},
+		dispose: clear,
+	};
+}
+
+function forwardInput(sender: Sender): InputForwarder {
+	const forwarder = createInputForwarder(sender);
 	const stdin = process.stdin;
 	stdin.setEncoding("utf8");
 	stdin.on("error", () => {});
-	stdin.on("data", (chunk: string) => {
-		for (const event of framer.push(chunk)) {
-			if (event.type === "wheel") sender.send(event);
-			else for (const data of chunkInput(event.data)) sender.send({ type: "input", data });
-		}
-	});
+	stdin.on("data", (chunk: string) => forwarder.push(chunk));
 	stdin.resume();
+	return forwarder;
 }
 
 function paintIncoming(socket: net.Socket, onOverflow: () => void): void {
@@ -192,10 +228,14 @@ function paintIncoming(socket: net.Socket, onOverflow: () => void): void {
 
 function main(argv: string[]): void {
 	const args = parseArgs(argv);
+	let input: InputForwarder | undefined;
 	const exit = createExit({
 		write: safeWrite,
 		stdin: process.stdin,
-		keepOff: () => keepOwnTerminalOff(args.parentTerminal),
+		keepOff: () => {
+			input?.dispose();
+			keepOwnTerminalOff(args.parentTerminal);
+		},
 		exit: (code) => process.exit(code),
 	});
 	// Async write errors (EPIPE) arrive as events; the listener stays attached so RESTORE's own error is handled too.
@@ -210,7 +250,7 @@ function main(argv: string[]): void {
 	socket.on("close", exit);
 	socket.on("error", exit);
 	paintIncoming(socket, exit);
-	forwardInput(sender);
+	input = forwardInput(sender);
 	process.on("SIGWINCH", () => sender.send({ type: "resize", ...size() }));
 	process.on("SIGTERM", exit);
 	setInterval(() => {

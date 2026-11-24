@@ -289,3 +289,6 @@ Outside the table below, the fork also changes repository files that upstream ke
 | `test/herdr/viewer-renderer.test.ts` | add | Tests for the viewer renderer. |
 | `src/herdr/frame-server.ts` | add | Unix-socket frame server connecting Herdr viewer processes to their renderers. |
 | `test/herdr/frame-server.test.ts` | add | Tests for the frame server over real sockets. |
+| `src/ui/session-navigation.ts` (in-flight) | edit | Optional `NavigableSubagent.inFlightMessage()` so a Herdr viewer attached mid-stream shows the partial assistant message. |
+| `src/lifecycle/subagent.ts` (in-flight) | edit | `inFlightMessage()` delegates to the session's streaming message. |
+| `src/lifecycle/subagent-session.ts` (in-flight) | edit | `inFlightMessage` reads the wrapped session's `state.streamingMessage`. |

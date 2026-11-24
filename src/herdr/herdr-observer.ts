@@ -214,7 +214,7 @@ export class HerdrViewers implements SubagentManagerObserver {
 		frames.register(source.key, source.target);
 		let terminal: string | undefined;
 		try {
-			terminal = await processes.start({ key: source.key, agentType: source.agentType, cwd, socket });
+			terminal = await processes.start({ key: source.key, agentType: source.agentType, cwd, socket }, () => !this.disposed);
 		} catch (err) {
 			frames.unregister(source.key);
 			throw err;

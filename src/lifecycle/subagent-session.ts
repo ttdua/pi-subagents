@@ -323,6 +323,11 @@ export class SubagentSession {
     return this._session.messages;
   }
 
+  /** The partial message being streamed right now, if any. */
+  get inFlightMessage(): SessionMessage | undefined {
+    return this._session.state.streamingMessage;
+  }
+
   /** Resolve a registered tool definition by name, for Pi's tool-execution components. */
   getToolDefinition(name: string): ToolDefinition | undefined {
     return this._session.getToolDefinition(name);

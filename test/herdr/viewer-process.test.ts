@@ -63,6 +63,17 @@ describe("ViewerProcesses.start", () => {
 		expect(cli.calls).toHaveLength(2);
 	});
 
+	it("skips the retry when the caller stops wanting the viewer", async () => {
+		const cli = new FakeHerdrCli();
+		let wanted = true;
+		cli.reply(["run"], () => {
+			wanted = false;
+			return { code: 1, stdout: "" };
+		});
+		expect(await new ViewerProcesses(cli, OPTS).start(launch(), () => wanted)).toBeUndefined();
+		expect(cli.calls).toHaveLength(1);
+	});
+
 	it("returns undefined when the reply has no address", async () => {
 		const cli = new FakeHerdrCli();
 		cli.reply(["run"], { code: 0, stdout: "not json" });

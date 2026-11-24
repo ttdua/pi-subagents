@@ -4,7 +4,7 @@
  * The server and every socket are unref'd.
  */
 
-import { chmodSync, mkdirSync, mkdtempSync, rmSync } from "node:fs";
+import { chmodSync, lstatSync, mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { createServer, type Server, type Socket } from "node:net";
 import { join } from "node:path";
 import { debugLog } from "#src/debug";
@@ -174,6 +174,18 @@ class ViewerConnection {
 	}
 }
 
+/**
+ * Whether `path` is a real directory (not a symlink) owned by this user and not writable by
+ * group or other — so no other user can swap the per-process socket directory inside it.
+ */
+function isPrivateDir(path: string): boolean {
+	const stat = lstatSync(path);
+	if (!stat.isDirectory()) return false;
+	const uid = process.getuid?.();
+	if (uid !== undefined && stat.uid !== uid) return false;
+	return (stat.mode & 0o022) === 0;
+}
+
 export class FrameServer {
 	private readonly targets = new Map<string, ViewerTarget>();
 	private readonly connections = new Map<string, ViewerConnection>();
@@ -236,6 +248,10 @@ export class FrameServer {
 		if (this.shut) return undefined;
 		try {
 			mkdirSync(this.o.root, { recursive: true, mode: 0o700 });
+			if (!isPrivateDir(this.o.root)) {
+				debugLog("frame server unsafe socket root", this.o.root);
+				return undefined;
+			}
 			const dir = mkdtempSync(join(this.o.root, `${this.o.pid}-`));
 			this.dir = dir;
 			chmodSync(dir, 0o700);

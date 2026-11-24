@@ -47,7 +47,7 @@ interface FakeRecord extends NavigableSubagent {
 	setStatus(s: SubagentStatus): void;
 }
 
-function fakeRecord(init: { status?: SubagentStatus; messages?: SessionMessage[]; tools?: Record<string, ToolDefinition>; outputFile?: string; ready?: boolean } = {}): FakeRecord {
+function fakeRecord(init: { status?: SubagentStatus; messages?: SessionMessage[]; tools?: Record<string, ToolDefinition>; outputFile?: string; ready?: boolean; inFlight?: () => SessionMessage | undefined } = {}): FakeRecord {
 	const listeners = new Set<(e: AgentSessionEvent) => void>();
 	const state = { status: init.status ?? "completed", ready: init.ready ?? true };
 	const record = {
@@ -59,6 +59,7 @@ function fakeRecord(init: { status?: SubagentStatus; messages?: SessionMessage[]
 				return () => listeners.delete(fn);
 			},
 			getToolDefinition: (name) => init.tools?.[name],
+			inFlightMessage: init.inFlight,
 		}),
 		messages: init.messages ?? [],
 		emit: (e?: AgentSessionEvent) => {
@@ -171,6 +172,27 @@ describe("ViewerRenderer", () => {
 		vi.advanceTimersByTime(1);
 		expect(text()).toContain("partial words");
 		expect(activityRows(text())).toHaveLength(1);
+	});
+
+	it("shows a partial message already streaming when the viewer opens", () => {
+		const partial = (assistantEvent("MID-STREAM") as unknown as { message: SessionMessage }).message;
+		const record = fakeRecord({ status: "running", messages: [user("go")], inFlight: () => partial });
+		const { text } = setup(recordTarget(record));
+		tick();
+		expect(text()).toContain("MID-STREAM");
+	});
+
+	it("shows a partial message already streaming after a file-to-live switch", () => {
+		const partial = (assistantEvent("MID-STREAM") as unknown as { message: SessionMessage }).message;
+		const record = fakeRecord({ status: "running", messages: [user("go")], ready: false, outputFile: "/nonexistent/s.jsonl", inFlight: () => partial });
+		const { renderer, text } = setup(recordTarget(record));
+		expect(text()).not.toContain("MID-STREAM");
+		(record as { isSessionReady: () => boolean }).isSessionReady = () => true;
+		renderer.refresh();
+		tick();
+		tick();
+		expect(text()).toContain("MID-STREAM");
+		expect(text()).toContain("go");
 	});
 
 	it("uses live call and result renderers", () => {
@@ -300,6 +322,17 @@ describe("ViewerRenderer", () => {
 		renderer.refresh();
 		tick();
 		expect(footer()).toContain("running again");
+	});
+
+	it("shows running again for a finish and resume within one frame", () => {
+		const record = fakeRecord({ status: "running", messages: [rowsOf(3)] });
+		const { renderer, text } = setup(recordTarget(record));
+		record.setStatus("completed");
+		renderer.refresh();
+		record.setStatus("running");
+		renderer.refresh();
+		tick();
+		expect(text().split("\n").at(-1) ?? "").toContain("running again");
 	});
 
 	it("labels a file target done", () => {
@@ -521,6 +554,24 @@ describe("ViewerRenderer frame-turn robustness", () => {
 		expect(spy).toHaveBeenCalledTimes(1);
 		vi.advanceTimersByTime(50);
 		expect(spy).toHaveBeenCalledTimes(2);
+		spy.mockRestore();
+	});
+
+	it("keeps repainting source events after a turn aborted before them", () => {
+		const record = fakeRecord({ status: "running" });
+		const { renderer, text } = setup(recordTarget(record));
+		const spy = vi.spyOn(TranscriptPane.prototype, "invalidate").mockImplementationOnce(() => {
+			throw new Error("boom");
+		});
+		record.emit(assistantEvent("FIRST"));
+		renderer.resize(70, 20);
+		tick();
+		expect(debugLog).toHaveBeenCalledWith("viewer frame", expect.any(Error));
+		tick();
+		expect(text()).toContain("FIRST");
+		record.emit(assistantEvent("SECOND"));
+		tick();
+		expect(text()).toContain("SECOND");
 		spy.mockRestore();
 	});
 

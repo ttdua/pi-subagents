@@ -60,7 +60,11 @@ class StatusTracker {
 		this.left = !this.active(status());
 	}
 
-	label(): string {
+	/**
+	 * Latches a transition from the current status (a field read). Called at every refresh so a
+	 * finish and a resume coalesced into one frame still mark the run as resumed.
+	 */
+	observe(): SubagentStatus | undefined {
 		const status = this.status();
 		if (this.active(status)) {
 			if (this.left) this.resumed = true;
@@ -68,7 +72,11 @@ class StatusTracker {
 		} else {
 			this.left = true;
 		}
-		return viewerStatusLabel(status, this.resumed);
+		return status;
+	}
+
+	label(): string {
+		return viewerStatusLabel(this.observe(), this.resumed);
 	}
 
 	private active(status: SubagentStatus | undefined): boolean {
@@ -166,6 +174,7 @@ export class ViewerRenderer {
 	}
 
 	refresh(): void {
+		this.tracker.observe();
 		this.pendingRefresh = true;
 		this.schedule();
 	}
@@ -205,7 +214,8 @@ export class ViewerRenderer {
 			debugLog("viewer frame", err);
 		} finally {
 			this.inTurn = false;
-			if (this.keyQueue.pending || this.renderDirty) this.schedule();
+			// Source events left queued by an aborted turn get no new `onQueued` until flushed: re-arm here.
+			if (this.keyQueue.pending || this.renderDirty || this.deferred.pending) this.schedule();
 			this.renderDirty = false;
 		}
 	}

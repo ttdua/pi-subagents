@@ -172,6 +172,22 @@ describe("SwitchableSource", () => {
 		expect(source.getMessages()).toEqual([]);
 	});
 
+	it("seeds the in-flight assistant message on live attach and on a switch to live", () => {
+		const timers = new FakeTimers();
+		const { record, state } = fakeRecord({ ready: true, outputFile: "/f" });
+		const partial = { role: "assistant", content: [{ type: "text", text: "part" }] };
+		(record as { inFlightMessage?: () => unknown }).inFlightMessage = () => partial;
+		const source = new SwitchableSource({ kind: "record", record, heading }, { fileSource, timers });
+		const events: unknown[] = [];
+		source.subscribe((e) => events.push(e));
+		expect(events).toEqual([{ type: "message_start", message: partial }]);
+		state.ready = false;
+		timers.tick(READINESS_PROBE_MS);
+		state.ready = true;
+		source.refresh();
+		expect(events.slice(1)).toEqual([undefined, undefined, { type: "message_start", message: partial }]);
+	});
+
 	it("switches live to file on release and back on resume", () => {
 		const timers = new FakeTimers();
 		const { record, state, hasListener } = fakeRecord({ ready: true, outputFile: "/f" });

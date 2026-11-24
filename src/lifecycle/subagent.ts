@@ -410,6 +410,11 @@ export class Subagent {
 		return this.subagentSession?.agentMessages ?? [];
 	}
 
+	/** The partial message the session is streaming right now, or undefined. */
+	inFlightMessage(): SessionMessage | undefined {
+		return this.subagentSession?.inFlightMessage;
+	}
+
 	/** Resolve a registered tool definition by name, or undefined if no session. */
 	getToolDefinition(name: string): ToolDefinition | undefined {
 		return this.subagentSession?.getToolDefinition(name);

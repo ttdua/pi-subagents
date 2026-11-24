@@ -47,6 +47,8 @@ export interface NavigableSubagent {
   isSessionReady(): boolean;
   subscribeToUpdates(fn: (event: AgentSessionEvent) => void): (() => void) | undefined;
   getToolDefinition(name: string): ToolDefinition | undefined;
+  /** The partial message being streamed right now, if any; lets a late subscriber show it. */
+  inFlightMessage?(): SessionMessage | undefined;
 }
 
 /**
