@@ -63,7 +63,7 @@ Blocked by: 2, 6
 
 Blocked by: 7
 
-- [ ] 8.1 ADR `docs/decisions/0016-herdr-viewer-renders-in-pi.md` superseding ADR 0015's "plain text, no Pi components" consequence; note in ADR 0015's status
-- [ ] 8.2 README "Herdr" section and `CHANGELOG.md` entry
-- [ ] 8.3 `UPSTREAM.md` rows: add new files, update edited rows, remove the status-files rows
-- [ ] 8.4 Run `bun run check`, `bun run test`, `bun run lint`, `bun run lint:md`, `bun run verify:public-types`, `openspec validate --all`
+- [x] 8.1 ADR `docs/decisions/0016-herdr-viewer-renders-in-pi.md` superseding ADR 0015's "plain text, no Pi components" consequence; note in ADR 0015's status
+- [x] 8.2 README "Herdr" section and `CHANGELOG.md` entry
+- [x] 8.3 `UPSTREAM.md` rows: add new files, update edited rows, remove the status-files rows
+- [x] 8.4 Run `bun run check`, `bun run test`, `bun run lint`, `bun run lint:md`, `bun run verify:public-types`, `openspec validate --all`
