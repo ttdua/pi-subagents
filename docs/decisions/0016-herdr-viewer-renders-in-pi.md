@@ -35,6 +35,6 @@ The main Pi process renders; the viewer only paints.
 - Status files and their tests are gone.
 - Tool renderers that need `TUI` members `HeadlessTui` lacks fall back or show an error for that row. The last frame stays.
 - The viewer's runtime requirement is unchanged from [ADR 0015]; a socket path over the platform limit (about 104 bytes on macOS) yields no viewer.
-- Pi's CPU does the rendering for every open viewer, bounded by the frame rate and the 4-viewer column.
+- Rendering cost in Pi grows with the number of connected viewers (waiting and hidden ones stay connected). Each viewer is limited to one frame per 50 ms and renders only when something changed.
 
 [ADR 0015]: 0015-subagent-viewers-in-a-herdr-column.md

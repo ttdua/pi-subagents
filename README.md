@@ -264,7 +264,7 @@ Creating and editing agent definitions is not a command — write an agent `.md`
 Inside [Herdr](https://herdr.dev), each subagent gets a read-only viewer: a column of terminals to the right of Pi that shows the child's transcript rendered like `/subagents:sessions` (markdown, tool renderers, streaming).
 
 - **Column:** at most 4 viewers are shown, the first right of Pi and the rest stacked below it. A fifth waits in Herdr's sidebar under Pi and moves in when a slot frees. Focus stays where it was.
-- **Finished children:** a viewer prints `done (<status>)` and is hidden, not closed. It is still reachable from the sidebar and from `/subagents:sessions`; a resumed child's viewer returns to the column.
+- **Finished children:** a viewer shows `done (<status>)` in its footer and is hidden, not closed. It is still reachable from the sidebar and from `/subagents:sessions`; a resumed child's viewer returns to the column.
 - **Scrolling:** scroll keys and the mouse wheel scroll a viewer; `Esc` and `q` do nothing.
 - **Read-only:** a viewer sends nothing to the child.
 - **Detection:** active only in the interactive TUI, in a terminal that Herdr shows in a tab, with `hc` and `herdr-app` on `PATH` and reachable. Elsewhere (child sessions, print, JSON and RPC modes, other terminals) nothing changes.
