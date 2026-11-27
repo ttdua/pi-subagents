@@ -85,8 +85,12 @@ export function readSubagentManifest(pkg: unknown): string[] | undefined {
 
 /** Agent directories of the executor itself, from its own manifest. */
 export function builtinAgentDirs(): PackageAgentDir[] {
-  const manifest = fileURLToPath(new URL("../../package.json", import.meta.url));
-  return agentDirsOf(dirname(manifest));
+  return agentDirsOf(executorRoot());
+}
+
+/** Canonical root of the executor package. */
+function executorRoot(): string {
+  return realOrSelf(dirname(fileURLToPath(new URL("../../package.json", import.meta.url))));
 }
 
 /**
@@ -106,12 +110,15 @@ export function packageAgentDirs(cwd: string, lister: PackageLister = configured
 function listPackageAgentDirs(cwd: string, lister: PackageLister): PackageAgentDir[] {
   try {
     const dirs: PackageAgentDir[] = [];
-    const seen = new Set<string>();
+    // The executor's own root is pre-seen: its agents already load as `builtin`.
+    const seen = new Set<string>([executorRoot()]);
     for (const row of lister(cwd, projectTrustedState)) {
       if (row.scope === "project" && !projectTrustedState) continue;
-      if (!row.installedPath || seen.has(row.installedPath)) continue;
-      seen.add(row.installedPath);
-      dirs.push(...agentDirsOf(row.installedPath));
+      if (!row.installedPath) continue;
+      const root = realOrSelf(row.installedPath);
+      if (seen.has(root)) continue;
+      seen.add(root);
+      dirs.push(...agentDirsOf(root));
     }
     return dirs;
   } catch (err) {
