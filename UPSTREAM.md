@@ -178,6 +178,8 @@ Outside the table below, the fork also changes repository files that upstream ke
 | `src/tools/get-result-renderer.ts` | edit | Comment sample uses the `explore` agent name. |
 | `src/config/custom-agents.ts` (malformed frontmatter) | edit | A file whose frontmatter fails to parse is logged and skipped instead of throwing. |
 | `src/config/package-agents.ts` (header) | edit | Header comment describes the per-session package listing cache. |
+| `src/config/package-agents.ts` (own package) | edit | Configured packages are deduplicated by canonical root and skip the executor's own root, so built-ins keep `source` `builtin` when the executor is itself a configured package. |
+| `test/config/package-agents.test.ts` (own package) | edit | The executor's own root in the configured list contributes no package agents. |
 | `src/service/service.ts` (comments) | edit | Examples use `general` / `explore`. |
 | `docs/configuration.md` (package entries) | edit | Documents that `agents` entries must be sub-directories of the package. |
 | `test/config/custom-agents.test.ts` (malformed frontmatter) | edit | Malformed package and global files are skipped. |

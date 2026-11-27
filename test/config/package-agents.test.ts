@@ -108,6 +108,12 @@ describe("packageAgentDirs (injected lister)", () => {
     expect(packageAgentDirs(tmp, lister)).toHaveLength(1);
   });
 
+  it("skips the executor's own package, whose agents load as builtin", () => {
+    const other = makePackage("a", declares("./agents"), { "agents/x.md": "x" });
+    const own = builtinAgentDirs()[0]!.root;
+    expect(packageAgentDirs(tmp, rows(own, other))).toEqual([{ dir: join(other, "agents"), root: other }]);
+  });
+
   it("hides project-scope packages until the project is trusted", () => {
     const root = makePackage("a", declares("./agents"), { "agents/x.md": "x" });
     const lister = () => [{ source: root, scope: "project" as const, installedPath: root }];
