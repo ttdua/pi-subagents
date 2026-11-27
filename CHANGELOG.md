@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 This fork's entries come first; upstream's are kept under "Upstream `@gotgenes/pi-subagents` history" below them.
 See `CONTRIBUTING.md` for the release steps.
 
+## [0.3.1](https://github.com/ttdua/pi-subagents/releases/tag/v0.3.1) (2026-11-27)
+
+Bug fix. The public service and types are unchanged.
+Install with `pi install git:github.com/ttdua/pi-subagents@v0.3.1`.
+
+### Fixed
+
+- Built-in agents keep `source: "builtin"` when `pi-subagents` is itself one of pi's configured packages; its own `agents/` directory is no longer loaded a second time as `package`. Configured packages are also deduplicated by canonical root ([#20](https://github.com/ttdua/pi-subagents/issues/20), [#21](https://github.com/ttdua/pi-subagents/pull/21)).
+
 ## [0.3.0](https://github.com/ttdua/pi-subagents/releases/tag/v0.3.0) (2026-11-24)
 
 Subagent viewers inside Herdr. Additive: outside Herdr nothing changes, and the public service and types are unchanged.
