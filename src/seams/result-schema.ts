@@ -88,16 +88,22 @@ export function parseQuestionSchema(
 ): QuestionSchema | undefined {
 	if (input === undefined) return undefined;
 	const ctx = newContext("questionSchema");
-	if (isPlainObject(input)) checkQuestionRoot(input, ctx);
-	return parseNode(input, "", true, ctx) as QuestionSchema;
+	const parsed = parseNode(input, "", true, ctx) as Record<string, unknown>;
+	checkQuestionRoot(parsed, ctx);
+	return parsed as QuestionSchema;
 }
 
-function checkQuestionRoot(input: Record<string, unknown>, ctx: ParseContext) {
-	if (input.type !== "object") refuse(ctx, "/type", "type must be object");
-	if (isPlainObject(input.properties) && hasOwn(input.properties, "question")) {
+/** Root checks run on the parsed, frozen copy, never on caller-owned objects. */
+function checkQuestionRoot(parsed: Record<string, unknown>, ctx: ParseContext) {
+	if (parsed.type !== "object") refuse(ctx, "/type", "type must be object");
+	const properties = parsed.properties as object | undefined;
+	if (properties && hasOwn(properties, "question")) {
 		refuse(ctx, "/properties/question", RESERVED_QUESTION_NAME);
 	}
-	if (Array.isArray(input.required) && input.required.includes("question")) {
+	if (
+		Array.isArray(parsed.required) &&
+		(parsed.required as string[]).includes("question")
+	) {
 		refuse(ctx, "/required", RESERVED_QUESTION_NAME);
 	}
 }

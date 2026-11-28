@@ -226,6 +226,21 @@ describe("parseQuestionSchema", () => {
 		).toThrow(/^questionSchema \/required: /);
 	});
 
+	it("checks the root on the parsed copy, not on a mutating accessor", () => {
+		let reads = 0;
+		const input = {
+			type: "object",
+			get properties() {
+				reads += 1;
+				return reads === 1 ? {} : { question: { type: "string" } };
+			},
+		};
+
+		const parsed = parseQuestionSchema(input) as QuestionSchema;
+
+		expect(Object.hasOwn(parsed.properties ?? {}, "question")).toBe(false);
+	});
+
 	it("names minimum and its pointer with the questionSchema prefix", () => {
 		let message = "";
 		try {
