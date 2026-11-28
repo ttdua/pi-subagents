@@ -85,6 +85,15 @@ describe("AgentTool", () => {
 
 });
 
+describe("AgentTool — question schema", () => {
+	it("has no question schema parameter", () => {
+		const def = makeTool(createToolDeps()).toToolDefinition();
+		const keys = Object.keys((def.parameters as { properties: Record<string, unknown> }).properties);
+		expect(keys).not.toContain("questionSchema");
+		expect(keys).not.toContain("question_schema");
+	});
+});
+
 describe("AgentTool — context", () => {
 	afterEach(() => {
 		vi.unstubAllEnvs();

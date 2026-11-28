@@ -42,6 +42,12 @@ describe("toPersistedRecord", () => {
 		expect(persisted).not.toHaveProperty("structuredResultError");
 	});
 
+	it("does not persist structuredQuestion", () => {
+		const record = createTestSubagent();
+		Object.defineProperty(record, "structuredQuestion", { value: { topic: "scope" } });
+		expect(toPersistedRecord(record)).not.toHaveProperty("structuredQuestion");
+	});
+
 	it("copies the persisted fields off the record, and no others", () => {
 		const turnBudget = { maxTurns: 5, used: 2, phase: "within" } as const;
 		const record = createTestSubagent({

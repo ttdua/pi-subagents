@@ -97,6 +97,7 @@ export class SubagentEventsObserver implements SubagentManagerObserver {
 		this.emit("subagents:asked", {
 			...identityOf(record),
 			question: question.text,
+			...(question.fields !== undefined && { structuredQuestion: question.fields }),
 			...launchFields(record),
 		});
 	}

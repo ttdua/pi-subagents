@@ -214,6 +214,13 @@ describe("buildEventData", () => {
     expect(buildEventData(record).turnBudget).toEqual({ maxTurns: 2, used: 7, phase: "exhausted" });
   });
 
+  it("carries structuredQuestion only when set", () => {
+    const withFields = createTestSubagent();
+    Object.defineProperty(withFields, "structuredQuestion", { value: { topic: "scope" } });
+    expect(buildEventData(withFields).structuredQuestion).toEqual({ topic: "scope" });
+    expect(buildEventData(baseRecord)).not.toHaveProperty("structuredQuestion");
+  });
+
   it("carries the structured outcome only when set", () => {
     const withResult = createTestSubagent();
     Object.defineProperty(withResult, "structuredResult", { value: { status: "done" } });

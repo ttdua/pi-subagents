@@ -377,6 +377,21 @@ describe("SubagentEventsObserver", () => {
 			});
 		});
 
+		it("subagents:asked carries structuredQuestion with a schema", () => {
+			const { observer, emit } = makeObserver();
+			observer.onSubagentQuestion(createTestSubagent(), { text: "Q", fields: { topic: "scope" } });
+			expect(emit).toHaveBeenCalledExactlyOnceWith(
+				"subagents:asked",
+				expect.objectContaining({ question: "Q", structuredQuestion: { topic: "scope" } }),
+			);
+		});
+
+		it("emits no structuredQuestion key without a schema", () => {
+			const { observer, emit } = makeObserver();
+			observer.onSubagentQuestion(createTestSubagent(), { text: "Q" });
+			expect(emit.mock.calls[0]![1] as Record<string, unknown>).not.toHaveProperty("structuredQuestion");
+		});
+
 		it("adds toolCallId and metadata when the record has them", () => {
 			const { observer, emit } = makeObserver();
 			const metadata = { change: "c1" };
