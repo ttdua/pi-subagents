@@ -10,9 +10,9 @@ Blocked by: none
 
 Blocked by: 1
 
-- [ ] 2.1 `AskParentTool` takes an optional `QuestionSchema`: schema parameters `{ question, ...properties }`, validation of the fields, error result without recording; unchanged definition without a schema (`test/session/ask-parent-tool.test.ts`)
-- [ ] 2.2 `QuestionRecorder` carries `AskedQuestion { text, fields? }`; `SubagentRun.setPendingQuestion` stores both and exposes `structuredQuestion`/`pendingStructuredQuestion` with the `replaced` rule; `fail` drops both (`test/lifecycle/subagent-run.test.ts`)
-- [ ] 2.3 Thread `questionSchema` through `SubagentManager.spawn` → `Subagent` execution → `createSubagentSession` → `AskParentTool`; observer hooks `onQuestionAsked`/`onSubagentQuestion` pass `AskedQuestion` (composite observer included)
+- [x] 2.1 `AskParentTool` takes an optional `QuestionSchema`: schema parameters `{ question, ...properties }`, validation of the fields, error result without recording; unchanged definition without a schema (`test/session/ask-parent-tool.test.ts`)
+- [x] 2.2 `QuestionRecorder` carries `AskedQuestion { text, fields? }`; `SubagentRun.setPendingQuestion` stores both and exposes `structuredQuestion`/`pendingStructuredQuestion` with the `replaced` rule; `fail` drops both (`test/lifecycle/subagent-run.test.ts`)
+- [x] 2.3 Thread `questionSchema` through `SubagentManager.spawn` → `Subagent` execution → `createSubagentSession` → `AskParentTool`; observer hooks `onQuestionAsked`/`onSubagentQuestion` pass `AskedQuestion` (composite observer included)
 
 ## 3. Service door, snapshots and events
 
