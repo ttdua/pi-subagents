@@ -2,9 +2,9 @@
 
 Blocked by: none
 
-- [ ] 1.1 Parameterise `src/seams/result-schema.ts` with a schema label so refusals read `questionSchema <pointer>: …` for question schemas, keeping every `resultSchema` error text and `validateResult` path unchanged
-- [ ] 1.2 Add `parseQuestionSchema` (root `type` `object`; `question` refused in root `properties` and `required`) and `validateQuestion` (paths named by property) with tests in `test/seams/result-schema.test.ts`
-- [ ] 1.3 Add the public `QuestionSchema` type, `SpawnOptions.questionSchema` and `SubagentRecord.structuredQuestion` in `src/service/service.ts`
+- [x] 1.1 Parameterise `src/seams/result-schema.ts` with a schema label so refusals read `questionSchema <pointer>: …` for question schemas, keeping every `resultSchema` error text and `validateResult` path unchanged
+- [x] 1.2 Add `parseQuestionSchema` (root `type` `object`; `question` refused in root `properties` and `required`) and `validateQuestion` (paths named by property) with tests in `test/seams/result-schema.test.ts`
+- [x] 1.3 Add the public `QuestionSchema` type, `SpawnOptions.questionSchema` and `SubagentRecord.structuredQuestion` in `src/service/service.ts`
 
 ## 2. Schema-shaped ask_parent and per-run structured question
 
