@@ -16,7 +16,9 @@
  */
 
 import { defineTool } from "@earendil-works/pi-coding-agent";
-import { Type } from "typebox";
+import { type TSchema, Type } from "typebox";
+import { validateQuestion } from "#src/seams/result-schema";
+import type { QuestionSchema } from "#src/service/service";
 
 export const ASK_PARENT_TOOL_NAME = "ask_parent";
 
@@ -32,19 +34,68 @@ export interface AskedQuestion {
 /** Records a child's question against its own subagent record. */
 export type QuestionRecorder = (question: AskedQuestion) => void;
 
+interface AskParentOutput {
+	content: { type: "text"; text: string }[];
+	details: undefined;
+	isError?: boolean;
+}
+
+function refusal(lines: string): AskParentOutput {
+	return {
+		content: [
+			{
+				type: "text" as const,
+				text: `The question does not match the required schema:\n${lines}\nFix it and call ask_parent again.`,
+			},
+		],
+		details: undefined,
+		isError: true,
+	};
+}
+
 export class AskParentTool {
-	constructor(private readonly record: QuestionRecorder) {}
+	constructor(
+		private readonly record: QuestionRecorder,
+		private readonly schema?: QuestionSchema,
+	) {}
 
 	execute(
 		_toolCallId: string,
-		params: { question: string },
+		params: Record<string, unknown>,
 		_signal: AbortSignal,
 		_onUpdate: unknown,
 		_ctx: unknown,
-	) {
-		this.record({ text: params.question });
+	): AskParentOutput {
+		const { question, ...rest } = params;
+		if (typeof question !== "string") return refusal("- question: must be a string");
+		if (this.schema) {
+			const violations = validateQuestion(this.schema, rest);
+			if (violations.length > 0) {
+				return refusal(violations.map((violation) => `- ${violation.path}: ${violation.message}`).join("\n"));
+			}
+			this.record({ text: question, fields: structuredClone(rest) });
+		} else {
+			this.record({ text: question });
+		}
 		// `details` is required by the SDK's result type; this tool renders none.
 		return { content: [{ type: "text" as const, text: RESULT_TEXT }], details: undefined };
+	}
+
+	/** Today's parameters without a schema; with one, `question` plus the schema's own properties. */
+	private parameters(): TSchema {
+		const questionProperty = Type.String({
+			description: "The question the delegating agent must answer before you can continue.",
+		});
+		const schema = this.schema;
+		if (!schema) return Type.Object({ question: questionProperty });
+		const parameters: Record<string, unknown> = {
+			type: "object",
+			properties: { question: questionProperty, ...schema.properties },
+			required: ["question", ...(schema.required ?? [])],
+		};
+		if (schema.additionalProperties !== undefined) parameters.additionalProperties = schema.additionalProperties;
+		// The caller's schema is the validated JSON Schema subset, which is what the tool-parameter type carries.
+		return parameters as unknown as TSchema;
 	}
 
 	toToolDefinition() {
@@ -57,15 +108,11 @@ export class AskParentTool {
 				"without information only the delegating agent has, and the answer changes what you would do; " +
 				"otherwise state your assumption and continue. After calling this, end your turn immediately — " +
 				"the delegating agent answers by resuming you, and you continue with your context intact.",
-			parameters: Type.Object({
-				question: Type.String({
-					description: "The question the delegating agent must answer before you can continue.",
-				}),
-			}),
+			parameters: this.parameters(),
 			// The tool's own work is synchronous; the SDK's execute contract is not.
 			execute: (
 				toolCallId: string,
-				params: { question: string },
+				params: Record<string, unknown>,
 				signal: AbortSignal,
 				onUpdate: unknown,
 				ctx: unknown,

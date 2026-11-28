@@ -420,6 +420,29 @@ describe("createSubagentSession — the core's own child tools", () => {
     });
   });
 
+  describe("when the launch supplies a question schema", () => {
+    it("ask_parent takes the launch's question schema", async () => {
+      arrangeFactory();
+      const schema = {
+        type: "object",
+        properties: { topic: { enum: ["fact", "scope", "other"] } },
+        required: ["topic"],
+        additionalProperties: false,
+      } as const;
+
+      await createSubagentSession(
+        { agentId: "a1", snapshot: STUB_SNAPSHOT, type: "Explore", askParent: vi.fn(), questionSchema: schema },
+        defaultDeps(),
+      );
+
+      const opts = io.createSession.mock.calls[0][0] as CreateSessionOptions;
+      const tool = opts.customTools?.find((t) => t.name === "ask_parent");
+      const properties = (tool?.parameters as unknown as { properties?: object } | undefined)?.properties ?? {};
+      expect(Object.keys(properties)).toContain("topic");
+      expect(opts.customTools).toHaveLength(1);
+    });
+  });
+
   describe("when the run supplies a result schema and sink", () => {
     const schema = { type: "object" } as const;
 

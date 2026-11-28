@@ -24,7 +24,7 @@ import type { RunConfig } from "#src/runtime";
 import type { EffectiveFacts, ToolFacts } from "#src/seams/identity";
 import type { LaunchOverrides, LaunchPolicyGate } from "#src/seams/launch-gate";
 import { type LaunchResources, type LaunchResourcesIO, recheckLaunchResources } from "#src/seams/launch-resources";
-import type { LaunchMetadata, LaunchOrigin, ResultSchema, StructuredResultError } from "#src/service/service";
+import type { LaunchMetadata, LaunchOrigin, QuestionSchema, ResultSchema, StructuredResultError } from "#src/service/service";
 import type { AskedQuestion } from "#src/session/ask-parent-tool";
 import type { CompactionInfo, ContextMode, ParentSessionInfo, SessionMessage, SubagentType, ThinkingLevel } from "#src/types";
 
@@ -129,6 +129,8 @@ export interface SubagentExecution {
 	launchGate?: LaunchPolicyGate;
 	/** The schema every run of this launch owes a structured result for; absent for a plain launch. */
 	resultSchema?: ResultSchema;
+	/** The schema this launch's `ask_parent` takes its fields from; absent for a plain launch. */
+	questionSchema?: QuestionSchema;
 }
 
 /**
@@ -193,6 +195,8 @@ export class Subagent {
 	get consumed(): boolean { return this.currentRun.consumed; }
 	get claimed(): boolean { return this.currentRun.claimed; }
 	get pendingQuestion(): string | undefined { return this.currentRun.pendingQuestion; }
+	/** The open question's validated fields; set only on a launch with a `questionSchema`. */
+	get structuredQuestion(): unknown { return this.currentRun.pendingStructuredQuestion; }
 	get structuredResult(): unknown { return this.currentRun.structuredResult; }
 	get structuredResultError(): StructuredResultError | undefined { return this.currentRun.structuredResultError; }
 	get runUpdates(): readonly string[] { return this.currentRun.runUpdates; }
@@ -539,6 +543,7 @@ export class Subagent {
 					? (message) => { this.announceUpdate(message); }
 					: undefined,
 				resultSchema: this.execution.resultSchema,
+				questionSchema: this.execution.questionSchema,
 				// Like ask_parent, the sink writes to whichever run is under way.
 				submitResult: this.execution.resultSchema
 					? {
