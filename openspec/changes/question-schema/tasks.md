@@ -18,9 +18,9 @@ Blocked by: 1
 
 Blocked by: 2
 
-- [ ] 3.1 `SubagentsServiceAdapter.spawn` parses `questionSchema` with the other refusals and refuses a `fork` context naming `questionSchema` and `fork` (`test/service/service-adapter.test.ts`)
-- [ ] 3.2 `toSubagentRecord`, `toWaitedRecord` and `buildEventData` carry `structuredQuestion` when set; `subagents:asked` carries it when the launch has a schema; `subagents:record` does not persist it (`test/observation/*`, `test/persisted-record.test.ts`)
-- [ ] 3.3 End-to-end flow test `test/seams/structured-question-flow.test.ts` and waited-run tests in `test/service/service-wait.test.ts` covering the spec scenarios
+- [x] 3.1 `SubagentsServiceAdapter.spawn` parses `questionSchema` with the other refusals and refuses a `fork` context naming `questionSchema` and `fork` (`test/service/service-adapter.test.ts`)
+- [x] 3.2 `toSubagentRecord`, `toWaitedRecord` and `buildEventData` carry `structuredQuestion` when set; `subagents:asked` carries it when the launch has a schema; `subagents:record` does not persist it (`test/observation/*`, `test/persisted-record.test.ts`)
+- [x] 3.3 End-to-end flow test `test/seams/structured-question-flow.test.ts` and waited-run tests in `test/service/service-wait.test.ts` covering the spec scenarios
 
 ## 4. Docs, provenance and public types
 
