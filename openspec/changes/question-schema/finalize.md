@@ -7,7 +7,7 @@
 
 **Change**: `question-schema`
 **Finalized at**: `2026-11-28 18:55`
-**Outcome**: `pr-updated`
+**Outcome**: `pr-created`
 
 ---
 
@@ -15,8 +15,8 @@
 
 - **Branch**: `feat/question-schema`
 - **Base branch**: `main`
-- **Final state**: `pr-updated` (feature branch pushed; no PR existed before finalize, see PR comment)
-- **PR URL**: `N/A` until a PR is opened
+- **Final state**: `pr-open`
+- **PR URL**: `https://github.com/ttdua/pi-subagents/pull/24` (opened at finalize step 11 with the user's approval; no PR existed before)
 
 Deviations from the canonical steps, as `AGENTS.md` requires:
 - The merge ran in the existing Worktrunk worktree of the feature branch (`/Users/naicoi/Projects/oss/pi-subagents.feat-question-schema`), not by checking out the feature branch in the main checkout. The main checkout stays on `main`, as `AGENTS.md` requires.
@@ -35,7 +35,7 @@ Deviations from the canonical steps, as `AGENTS.md` requires:
 
 ## PR comment
 
-- **PR comment status**: `skipped (no PR)` at the time of this receipt; it will be updated if a PR is opened in this finalize run
+- **PR comment status**: `posted` (https://github.com/ttdua/pi-subagents/pull/24#issuecomment-7238740879)
 
 ---
 
@@ -55,4 +55,4 @@ Deviations from the canonical steps, as `AGENTS.md` requires:
 
 ## Next step
 
-Wait for PR code review (the logic pre-review has already happened). After approval, run `/opsx-archive` on this feature branch so the commits land here, and push the archive commits to update the PR. Then merge the PR (`gh pr merge --squash --delete-branch` or the GitHub UI); that single merge lands the implementation and the archive into `main`.
+Wait for PR review on #24. After approval, run `/opsx-archive` on this feature branch so the commits land here, and push the archive commits to update the PR. Then merge the PR (`gh pr merge --squash --delete-branch` or the GitHub UI); that single merge lands the implementation and the archive into `main`.
