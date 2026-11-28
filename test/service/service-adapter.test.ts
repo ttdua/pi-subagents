@@ -491,14 +491,14 @@ describe("SubagentsServiceAdapter — spawn", () => {
       expect(mgr.spawn).toHaveBeenCalledTimes(1);
     });
 
-    it("does not call the policy for a refused schema", () => {
+    it("refuses a schema before building a snapshot or spawning", () => {
       const mgr = createManagerStub();
-      const policy = vi.fn();
-      mgr.registerLaunchPolicy(policy, { timeoutMs: 10 });
-      const svc = new SubagentsServiceAdapter(mgr, vi.fn(), makeRuntimeStub(), NO_AGENT_TYPES);
+      const runtime = makeRuntimeStub();
+      const svc = new SubagentsServiceAdapter(mgr, vi.fn(), runtime, NO_AGENT_TYPES);
       expect(() => svc.spawn("Explore", "t", { questionSchema: { type: "string" } as never })).toThrow(/questionSchema/);
       expect(() => svc.spawn("Explore", "t", { context: "fork", questionSchema: SCHEMA })).toThrow(/questionSchema/);
-      expect(policy).not.toHaveBeenCalled();
+      expect(runtime.buildSnapshot).not.toHaveBeenCalled();
+      expect(mgr.spawn).not.toHaveBeenCalled();
     });
 
     it("passes a frozen copy to the manager", () => {

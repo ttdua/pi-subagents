@@ -23,7 +23,7 @@
 ## Review Focus
 
 - A schema with no `required` and `additionalProperties` unset, called with `{ question: "Q", extra: 1 }`: valid, `structuredQuestion` is `{ extra: 1 }` (JSON Schema default allows extras). Test `keeps undeclared fields when additionalProperties is unset` in Task 1 (validator) and Task 2 (tool).
-- `question` passed as a non-string while a schema is set: Pi's parameter check refuses it, and the tool never records a non-string text. Task 2 test `refuses a non-string question without recording` calls `execute` directly with `{ question: 1, topic: "fact" }` and expects `isError` and no recorder call.
+- `question` passed as a non-string: a non-string `question` reaching `execute` directly is refused and nothing is recorded; through Pi a coercible value arrives as a string (argument coercion runs first) and is recorded as such. Task 2 test `refuses a non-string question without recording` calls `execute` directly with `{ question: 1, topic: "fact" }` and expects `isError` and no recorder call.
 - An invalid call after a valid one in the same run: the earlier question and fields stay (invalid records nothing). Task 2 test `an invalid call leaves the earlier question in place`.
 - A tool-call launch (no schema) after this change: `subagents:asked` has no `structuredQuestion` key at all, not `undefined`. Task 3 test `emits no structuredQuestion key without a schema` (asserts `not.toHaveProperty`).
 - Schema `description` at the root: it must not replace the tool's own `ask_parent` description; property descriptions do pass through. Task 2 test `keeps the tool description when the schema has one`.

@@ -610,6 +610,7 @@ Put an `other` value in an `enum` as a catch-all so the child is never forced in
 A launch with a schema gives the child an `ask_parent` whose parameters are `question` (a string, required) plus the schema's root `properties`.
 The schema's `required` entries are required next to `question`, and its `additionalProperties` applies to the other properties.
 A launch without a schema keeps today's `ask_parent`, unchanged.
+The tool follows the existing tool rules (`disallowed_tools`, launch-policy removal) unchanged; when it is removed, the child cannot ask and no `structuredQuestion` exists.
 
 The child validates the arguments other than `question` against the schema, after Pi's own argument validation.
 An invalid call returns an error listing each violation with its path, records nothing, emits no `subagents:asked`, and the run keeps going, so the child can call again.
@@ -617,13 +618,13 @@ A valid call records the question text and a frozen copy of the fields.
 
 Per run:
 
-- `structuredQuestion` holds the validated fields without `question`, `{}` for a schema without properties;
+- `structuredQuestion` holds the validated fields without `question`; a schema without `properties` and without `additionalProperties: false` accepts extra fields, so it is `{}` only when the call sends nothing besides `question`;
 - a later valid call in the same run replaces it, and it never exists without `pendingQuestion`;
 - a failed run drops it with the question; a run ended at its turn limit keeps it;
 - a resume clears it, and the resumed run can ask again.
 
 `structuredQuestion` is on the `SubagentRecord` snapshot, on `wait()`'s snapshot for the waited run, and on `subagents:asked`, `subagents:completed`, `subagents:failed` and `subagents:resumed`, only when set.
-It is not persisted: the `subagents:record` session entry does not store it.
+It is not stored in the `subagents:record` session entry.
 Main-session notifications and `get_subagent_result` text do not change.
 
 #### `childSession` contract

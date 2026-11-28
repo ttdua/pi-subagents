@@ -137,11 +137,6 @@ function harness() {
 			script = childScript;
 			return service.spawn("Explore", "go", { foreground: true, questionSchema: schema });
 		},
-		async resume(id: string, childScript: ChildScript): Promise<void> {
-			script = childScript;
-			await service.resume(id, "go on");
-			await manager.getRecord(id)?.promise;
-		},
 		setScript(childScript: ChildScript) {
 			script = childScript;
 		},
@@ -225,20 +220,25 @@ describe("Structured question through the service door", () => {
 		const h = harness();
 		const schema = {
 			type: "object",
-			properties: { topic: { enum: ["scope", "other"] } },
-		} as { type: "object"; properties: { topic: { enum: string[] } } };
+			properties: { topic: { enum: ["fact", "scope", "other"] } },
+			required: ["topic"],
+			additionalProperties: false,
+		} as { type: "object"; properties: { topic: { enum: string[] } }; required: string[]; additionalProperties: false };
 		let reply: ToolResult | undefined;
 		const gate = Promise.withResolvers<void>();
 		const id = h.spawnOnly(schema as QuestionSchema, async (ask) => {
 			await gate.promise;
 			reply = await ask({ question: "Q", topic: "other" });
 		});
-		schema.properties.topic.enum.splice(1, 1);
+		schema.properties.topic.enum.splice(2, 1);
+		const waiting = h.service.wait(id);
 		gate.resolve();
-		await h.manager.getRecord(id)?.promise;
+		const waited = await waiting;
 
 		expect(reply?.isError).toBeUndefined();
-		expect(h.record(id).structuredQuestion).toEqual({ topic: "other" });
+		expect(waited.status).toBe("completed");
+		expect(waited.pendingQuestion).toBe("Q");
+		expect(waited.structuredQuestion).toEqual({ topic: "other" });
 	});
 
 	it("resume clears it, and the resumed run can ask again", async () => {
