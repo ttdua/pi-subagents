@@ -7,7 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 This fork's entries come first; upstream's are kept under "Upstream `@gotgenes/pi-subagents` history" below them.
 See `CONTRIBUTING.md` for the release steps.
 
-## [Unreleased]
+## [0.4.0](https://github.com/ttdua/pi-subagents/releases/tag/v0.4.0) (2026-11-28)
+
+Structured `ask_parent` questions for service launches. Additive: the service and record gain optional fields, and launches without the new option behave as before.
+Install with `pi install git:github.com/ttdua/pi-subagents@v0.4.0`.
 
 ### Added
 
