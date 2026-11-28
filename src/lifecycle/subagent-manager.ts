@@ -37,6 +37,7 @@ import {
   type LaunchResourcesIO,
 } from "#src/seams/launch-resources";
 import type { LaunchMetadata, LaunchOrigin, LaunchPolicy, ResultSchema } from "#src/service/service";
+import type { AskedQuestion } from "#src/session/ask-parent-tool";
 import type { AgentConfig, CompactionInfo, ContextMode, ParentSessionInfo, SubagentType, ThinkingLevel } from "#src/types";
 
 /**
@@ -169,7 +170,7 @@ export interface SubagentManagerObserver {
    * Fires when a running child records a question for its parent.
    * Optional: a hook nobody supplies is a vacant one.
    */
-  onSubagentQuestion?(record: Subagent, question: string): void;
+  onSubagentQuestion?(record: Subagent, question: AskedQuestion): void;
   /**
    * Fires when a teardown after the record's result was delivered reported
    * where its work went.

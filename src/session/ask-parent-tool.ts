@@ -23,8 +23,14 @@ export const ASK_PARENT_TOOL_NAME = "ask_parent";
 const RESULT_TEXT =
 	"Question recorded for the delegating agent. End your turn now — it will answer by resuming you, and you will continue with your context intact.";
 
+/** A question a child asked: its text, and the validated fields when the launch has a `questionSchema`. */
+export interface AskedQuestion {
+	readonly text: string;
+	readonly fields?: unknown;
+}
+
 /** Records a child's question against its own subagent record. */
-export type QuestionRecorder = (question: string) => void;
+export type QuestionRecorder = (question: AskedQuestion) => void;
 
 export class AskParentTool {
 	constructor(private readonly record: QuestionRecorder) {}
@@ -36,7 +42,7 @@ export class AskParentTool {
 		_onUpdate: unknown,
 		_ctx: unknown,
 	) {
-		this.record(params.question);
+		this.record({ text: params.question });
 		// `details` is required by the SDK's result type; this tool renders none.
 		return { content: [{ type: "text" as const, text: RESULT_TEXT }], details: undefined };
 	}

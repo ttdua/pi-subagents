@@ -120,10 +120,10 @@ describe("CompositeSubagentObserver", () => {
 			const composite = new CompositeSubagentObserver([a, b]);
 			const record = createTestSubagent({ id: "agent-7" });
 
-			composite.onSubagentQuestion(record, "Which config?");
+			composite.onSubagentQuestion(record, { text: "Which config?" });
 
-			expect(a.onSubagentQuestion).toHaveBeenCalledExactlyOnceWith(record, "Which config?");
-			expect(b.onSubagentQuestion).toHaveBeenCalledExactlyOnceWith(record, "Which config?");
+			expect(a.onSubagentQuestion).toHaveBeenCalledExactlyOnceWith(record, { text: "Which config?" });
+			expect(b.onSubagentQuestion).toHaveBeenCalledExactlyOnceWith(record, { text: "Which config?" });
 		});
 
 		it("forwards onSubagentUpdate to the delegates that implement it", () => {

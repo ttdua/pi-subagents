@@ -46,7 +46,7 @@ function createFactory() {
 		factory,
 		stub,
 		params,
-		ask: (question: string) => { params().askParent?.(question); },
+		ask: (question: string) => { params().askParent?.({ text: question }); },
 		notify: (message: string) => { params().notifyParent?.(message); },
 		submit: (value: unknown) => params().submitResult?.submit(value),
 	};

@@ -25,6 +25,7 @@ import type { EffectiveFacts, ToolFacts } from "#src/seams/identity";
 import type { LaunchOverrides, LaunchPolicyGate } from "#src/seams/launch-gate";
 import { type LaunchResources, type LaunchResourcesIO, recheckLaunchResources } from "#src/seams/launch-resources";
 import type { LaunchMetadata, LaunchOrigin, ResultSchema, StructuredResultError } from "#src/service/service";
+import type { AskedQuestion } from "#src/session/ask-parent-tool";
 import type { CompactionInfo, ContextMode, ParentSessionInfo, SessionMessage, SubagentType, ThinkingLevel } from "#src/types";
 
 /** Per-subagent lifecycle observer — created by SubagentManager for each spawn. */
@@ -43,7 +44,7 @@ export interface SubagentLifecycleObserver {
 	/** Fires when the running agent sends its parent a mid-run message. */
 	onUpdateSent?(agent: Subagent, message: string): void;
 	/** Fires when the running agent records a question for its parent. */
-	onQuestionAsked?(agent: Subagent, question: string): void;
+	onQuestionAsked?(agent: Subagent, question: AskedQuestion): void;
 	/**
 	 * Fires when a teardown after the agent's result was delivered reported where
 	 * its work went. Not fired for a failed run or resume: those reach a terminal

@@ -9,6 +9,7 @@ import type { SubagentSession, TurnLoopResult } from "#src/lifecycle/subagent-se
 import type { WorkspaceProvider } from "#src/lifecycle/workspace";
 import { NotificationManager } from "#src/observation/notification";
 import type { RunConfig } from "#src/runtime";
+import type { AskedQuestion } from "#src/session/ask-parent-tool";
 import { GetResultTool } from "#src/tools/get-result-tool";
 import type { AgentConfig, Subagent } from "#src/types";
 import { makeAgentConfig } from "#test/helpers/make-agent-config";
@@ -1550,9 +1551,9 @@ describe("SubagentManager", () => {
       const onSubagentWorkspaceNotice = vi.fn<(record: Subagent, notice: string) => void>();
       const notice = "\n\n---\nChanges saved to branch `pi-agent-1`.";
       const stub = createSubagentSessionStub();
-      let askParent: ((question: string) => void) | undefined;
+      let askParent: ((question: AskedQuestion) => void) | undefined;
       stub.runTurnLoop.mockImplementation(() => {
-        askParent?.("Which config?");
+        askParent?.({ text: "Which config?" });
         return Promise.resolve(turnLoopResult({ responseText: "Mapped them." }));
       });
       ({ manager } = createManager({

@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
-import { AskParentTool } from "#src/session/ask-parent-tool";
+import { type AskedQuestion, AskParentTool } from "#src/session/ask-parent-tool";
 import { STUB_CTX } from "#test/helpers/stub-ctx";
 
-function execute(record: (question: string) => void, question: string) {
+function execute(record: (question: AskedQuestion) => void, question: string) {
 	const tool = new AskParentTool(record);
 	return tool.execute("tc-1", { question }, new AbortController().signal, undefined, STUB_CTX);
 }
@@ -22,11 +22,11 @@ describe("AskParentTool", () => {
 
 	describe("recording a question", () => {
 		it("hands the question to the recorder verbatim", () => {
-			const record = vi.fn<(question: string) => void>();
+			const record = vi.fn<(question: AskedQuestion) => void>();
 
 			execute(record, "Which of the three config files is authoritative?");
 
-			expect(record).toHaveBeenCalledWith("Which of the three config files is authoritative?");
+			expect(record).toHaveBeenCalledWith({ text: "Which of the three config files is authoritative?" });
 		});
 
 		it("tells the child to end its turn and how the answer arrives", () => {

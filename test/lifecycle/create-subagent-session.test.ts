@@ -5,6 +5,7 @@ import type {
 } from "#src/lifecycle/create-subagent-session";
 import { createSubagentSession } from "#src/lifecycle/create-subagent-session";
 import { SubagentSession } from "#src/lifecycle/subagent-session";
+import type { AskedQuestion } from "#src/session/ask-parent-tool";
 import { builtinConfig } from "#test/helpers/builtin-config";
 import { STUB_CTX, STUB_SNAPSHOT } from "#test/helpers/stub-ctx";
 import {
@@ -400,7 +401,7 @@ describe("createSubagentSession — the core's own child tools", () => {
 
     it("routes a call on the installed tool to the supplied recorder", async () => {
       arrangeFactory();
-      const askParent = vi.fn<(question: string) => void>();
+      const askParent = vi.fn<(question: AskedQuestion) => void>();
 
       await createSubagentSession(
         { agentId: "a1", snapshot: STUB_SNAPSHOT, type: "Explore", askParent },
@@ -415,7 +416,7 @@ describe("createSubagentSession — the core's own child tools", () => {
         () => {},
         STUB_CTX as ExecuteCtx,
       );
-      expect(askParent).toHaveBeenCalledWith("Which config wins?");
+      expect(askParent).toHaveBeenCalledWith({ text: "Which config wins?" });
     });
   });
 
