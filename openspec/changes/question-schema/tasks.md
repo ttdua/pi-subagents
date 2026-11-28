@@ -26,6 +26,6 @@ Blocked by: 2
 
 Blocked by: 3
 
-- [ ] 4.1 README "Structured questions" section, `subagents:asked` event row and waited-run field list; `docs/configuration.md` `ask_parent` note; `CHANGELOG.md` `Added` entry
-- [ ] 4.2 `UPSTREAM.md` rows for every changed upstream file and the new test file
-- [ ] 4.3 Regenerate `dist/public.d.ts` and run `bun run check`, `bun run lint`, `bun run test`, `bun run verify:public-types`, `openspec validate --all`
+- [x] 4.1 README "Structured questions" section, `subagents:asked` event row and waited-run field list; `docs/configuration.md` `ask_parent` note; `CHANGELOG.md` `Added` entry
+- [x] 4.2 `UPSTREAM.md` rows for every changed upstream file and the new test file
+- [x] 4.3 Regenerate `dist/public.d.ts` and run `bun run check`, `bun run lint`, `bun run test`, `bun run verify:public-types`, `openspec validate --all`
