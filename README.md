@@ -345,13 +345,13 @@ Agent lifecycle events are emitted via `pi.events.emit()` so other extensions ca
 | ---------------------------- | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
 | `subagents:created`          | Background agent registered                             | `id`, `type`, `description`, `isBackground`, `metadata`                                                                  |
 | `subagents:started`          | Agent transitions to running (including queued→running) | `id`, `type`, `description`, `metadata`                                                                                  |
-| `subagents:completed`        | Agent finished successfully                             | `id`, `type`, `status`, `turnBudget`, `durationMs`, `tokens` (lifetime `{ input, output, total }`), `toolUses`, `result`, `metadata`, `structuredResult`, `structuredResultError` (when set) |
-| `subagents:failed`           | Agent errored, stopped, or aborted                      | same as completed + `error`, `status`, `structuredResult`, `structuredResultError` (when set)                            |
+| `subagents:completed`        | Agent finished successfully                             | `id`, `type`, `status`, `turnBudget`, `durationMs`, `tokens` (lifetime `{ input, output, total }`), `toolUses`, `result`, `metadata`, `structuredResult`, `structuredResultError`, `structuredQuestion` (when set) |
+| `subagents:failed`           | Agent errored, stopped, or aborted                      | same as completed + `error`, `status`, `structuredResult`, `structuredResultError`, `structuredQuestion` (when set)                     |
 | `subagents:resuming`         | Resume started (a queued resume, once admitted)         | `id`, `type`, `description`, `metadata`                                                                                  |
-| `subagents:resumed`          | Resumed run ended (including one stopped while queued)  | same as completed + `error`, `status` (`buildEventData` shape) — `status`/`error` discriminate; `metadata` included; `structuredResult`, `structuredResultError` (when set) |
+| `subagents:resumed`          | Resumed run ended (including one stopped while queued)  | same as completed + `error`, `status` (`buildEventData` shape) — `status`/`error` discriminate; `metadata` included; `structuredResult`, `structuredResultError`, `structuredQuestion` (when set) |
 | `subagents:steered`          | Steering message sent                                   | `id`, `message`                                                                                                          |
 | `subagents:update`           | Progress message from a `notify_parent` call (always emitted; the main-session message is held while a `wait` is pending) | `id`, `type`, `description`, `message`, `metadata`, `toolCallId` (when launched or resumed from a tool call) |
-| `subagents:asked`            | Agent asked its parent a question (`ask_parent`)        | `id`, `type`, `description`, `question`, `metadata`, `toolCallId` (when launched or resumed from a tool call) |
+| `subagents:asked`            | Agent asked its parent a question (`ask_parent`)        | `id`, `type`, `description`, `question`, `metadata`, `toolCallId` (when launched or resumed from a tool call), `structuredQuestion` (when the launch has a `questionSchema`) |
 | `subagents:compacted`        | Agent's session successfully compacted                  | `id`, `type`, `description`, `reason` (`"manual"` / `"threshold"` / `"overflow"`), `tokensBefore`, `compactionCount`     |
 | `subagents:settings_loaded`  | Persisted settings applied at extension init            | `settings` (merged global + project)                                                                                     |
 | `subagents:settings_changed` | `/subagents:settings` mutation was applied              | `settings`, `persisted` (`boolean` — `false` on write failure)                                                           |
@@ -365,6 +365,7 @@ Use `contextUsage.percent` (surfaced as `(NN%)` in the widget) for current conte
 `subagents:child:session-created` carries `cwd` on every launch, and `inheritSkills`, `skillPaths`, `excludedExtensionPackages` and `contextFiles` for a launch with launch resources or a pinned agent; see [Launch resources](#launch-resources).
 
 `structuredResult` and `structuredResultError` are on `subagents:completed`, `subagents:failed` and `subagents:resumed` only when set, and are not persisted; see [Structured results](#structured-results).
+`structuredQuestion` follows the same rule and is also on `subagents:asked`; see [Structured questions](#structured-questions).
 
 ## Worktree Isolation
 
@@ -461,7 +462,7 @@ A failed run resolves with `status: "error"`; it does not reject.
 A run already settled resolves at once.
 A run still queued is waited for through its queue time.
 
-The per-run fields (`status`, `result`, `error`, `startedAt`, `completedAt`, `turnBudget`, `pendingQuestion`, `structuredResult` and `structuredResultError`) describe the run the wait began on.
+The per-run fields (`status`, `result`, `error`, `startedAt`, `completedAt`, `turnBudget`, `pendingQuestion`, `structuredQuestion`, `structuredResult` and `structuredResultError`) describe the run the wait began on.
 When a resume replaces that run before the promise resolves, every other field, such as `resumeRefusal`, describes the record at resolve time.
 
 An unknown `id` rejects.
@@ -579,6 +580,52 @@ A run stopped while queued sets neither field. The free-text `result` is kept in
 The `SubagentRecord` snapshot and the `subagents:completed`, `subagents:failed` and `subagents:resumed` payloads carry `structuredResult` or `structuredResultError` only when set.
 The `subagents:record` session entry does not store either field, so they are gone after a reload.
 
+#### Structured questions
+
+`spawn` takes an optional `questionSchema`, `SpawnOptions.questionSchema`, so the child's `ask_parent` question carries typed fields next to its text.
+The schema uses the same JSON Schema subset, annotations and copy rules as [`resultSchema`](#structured-results), with two more rules:
+
+- the root must declare `type: "object"`;
+- the root `properties` must not declare `question`, and `required` must not name it.
+
+`spawn` throws, before any record, session or policy call, for a schema that breaks these or the subset rules; errors read `questionSchema <pointer>: <message>`.
+A launch that resolves to `context: fork` with a `questionSchema` is refused; the error names `questionSchema` and `fork`.
+The executor keeps a frozen copy of the schema, so later changes to the caller's object have no effect.
+The `subagent` tool and agent frontmatter do not accept a schema.
+A service older than this option ignores `questionSchema`; feature-detect before relying on `structuredQuestion`.
+
+```ts
+svc.spawn("explore", brief, {
+  questionSchema: {
+    type: "object",
+    properties: { topic: { enum: ["fact", "scope", "other"] } },
+    required: ["topic"],
+    additionalProperties: false,
+  },
+});
+```
+
+Put an `other` value in an `enum` as a catch-all so the child is never forced into a wrong choice.
+
+A launch with a schema gives the child an `ask_parent` whose parameters are `question` (a string, required) plus the schema's root `properties`.
+The schema's `required` entries are required next to `question`, and its `additionalProperties` applies to the other properties.
+A launch without a schema keeps today's `ask_parent`, unchanged.
+
+The child validates the arguments other than `question` against the schema, after Pi's own argument validation.
+An invalid call returns an error listing each violation with its path, records nothing, emits no `subagents:asked`, and the run keeps going, so the child can call again.
+A valid call records the question text and a frozen copy of the fields.
+
+Per run:
+
+- `structuredQuestion` holds the validated fields without `question`, `{}` for a schema without properties;
+- a later valid call in the same run replaces it, and it never exists without `pendingQuestion`;
+- a failed run drops it with the question; a run ended at its turn limit keeps it;
+- a resume clears it, and the resumed run can ask again.
+
+`structuredQuestion` is on the `SubagentRecord` snapshot, on `wait()`'s snapshot for the waited run, and on `subagents:asked`, `subagents:completed`, `subagents:failed` and `subagents:resumed`, only when set.
+It is not persisted: the `subagents:record` session entry does not store it.
+Main-session notifications and `get_subagent_result` text do not change.
+
 #### `childSession` contract
 
 `svc.childSession(sessionId)` returns `{ agentId, agentType, metadata }` for the live child session `sessionId` belongs to, and `undefined` for the main session or an unknown id.
@@ -599,6 +646,7 @@ Poll again for fresh data.
 The snapshot carries identity (`id`, `type`, `description`), lifecycle status (`status`, `startedAt`, `completedAt`, `result`, `error`, `pendingQuestion`), `isBackground` (whether the current run is in the background: the spawn's mode until the first run starts, and each resume's own afterwards), the current run's `turnBudget`, cumulative metrics (`toolUses`, `compactionCount`, `lifetimeUsage`), and `outputFile` — the path to the agent's session JSONL, which you can read with Pi's own `parseSessionEntries`.
 
 When the launch had a `resultSchema`, it also carries `structuredResult` and `structuredResultError` for the current run; see [Structured results](#structured-results).
+When the launch had a `questionSchema` and the run asked, it carries `structuredQuestion`; see [Structured questions](#structured-questions).
 
 It also carries `resumeRefusal`: absent when `resume` would start a run, otherwise the reason it would refuse with (the [`resume` contract](#resume-contract) lists them).
 Render a Resume affordance from it without calling `resume` first.

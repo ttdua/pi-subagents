@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 This fork's entries come first; upstream's are kept under "Upstream `@gotgenes/pi-subagents` history" below them.
 See `CONTRIBUTING.md` for the release steps.
 
+## [Unreleased]
+
+### Added
+
+- `SpawnOptions.questionSchema` makes the child's `ask_parent` take `{ question, ...fields }`, validated in the child; the parent reads `structuredQuestion` from the record, `wait()` and the lifecycle events ([#23](https://github.com/ttdua/pi-subagents/issues/23)).
+
 ## [0.3.1](https://github.com/ttdua/pi-subagents/releases/tag/v0.3.1) (2026-11-27)
 
 Bug fix. The public service and types are unchanged.
