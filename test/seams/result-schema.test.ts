@@ -1,6 +1,18 @@
-import { describe, expect, it } from "vitest";
-import { parseResultSchema, validateResult } from "#src/seams/result-schema";
-import type { ResultSchema } from "#src/service/service";
+import { beforeEach, describe, expect, it } from "vitest";
+import {
+	parseQuestionSchema,
+	parseResultSchema,
+	validateQuestion,
+	validateResult,
+} from "#src/seams/result-schema";
+import type { QuestionSchema, ResultSchema } from "#src/service/service";
+
+const REF = {
+	type: "object",
+	properties: { topic: { enum: ["fact", "scope", "other"] } },
+	required: ["topic"],
+	additionalProperties: false,
+};
 
 const issueSchema = {
 	type: "object",
@@ -172,6 +184,113 @@ describe("parseResultSchema", () => {
 				properties: { "a/b~c": { type: "number", minimum: 0 } },
 			}),
 		).toThrow(/\/properties\/a~1b~0c\/minimum/);
+	});
+});
+
+describe("parseQuestionSchema", () => {
+	it("returns undefined for undefined", () => {
+		expect(parseQuestionSchema(undefined)).toBeUndefined();
+	});
+
+	it("accepts the reference schema and returns a deep-frozen copy", () => {
+		const parsed = parseQuestionSchema(REF) as QuestionSchema;
+
+		expect(Object.isFrozen(parsed.properties?.topic?.enum)).toBe(true);
+		expect(parsed).toEqual(REF);
+	});
+
+	it("refuses a non-object root at /type", () => {
+		expect(() => parseQuestionSchema({ type: "string" })).toThrow(
+			/^questionSchema \/type: /,
+		);
+	});
+
+	it("refuses a missing root type", () => {
+		expect(() => parseQuestionSchema({ properties: {} })).toThrow(
+			/^questionSchema \/type: /,
+		);
+	});
+
+	it("refuses question in properties", () => {
+		expect(() =>
+			parseQuestionSchema({
+				type: "object",
+				properties: { question: { type: "string" } },
+			}),
+		).toThrow(/^questionSchema \/properties\/question: /);
+	});
+
+	it("refuses question in required", () => {
+		expect(() =>
+			parseQuestionSchema({ type: "object", required: ["question"] }),
+		).toThrow(/^questionSchema \/required: /);
+	});
+
+	it("names minimum and its pointer with the questionSchema prefix", () => {
+		let message = "";
+		try {
+			parseQuestionSchema({
+				type: "object",
+				properties: { n: { type: "number", minimum: 0 } },
+			});
+		} catch (error) {
+			message = (error as Error).message;
+		}
+
+		expect(message).toContain("questionSchema");
+		expect(message).toContain("minimum");
+		expect(message).toContain("/properties/n/minimum");
+	});
+
+	it("refuses the draft-07 $schema with the questionSchema prefix", () => {
+		expect(() =>
+			parseQuestionSchema({
+				type: "object",
+				$schema: "http://json-schema.org/draft-07/schema#",
+			}),
+		).toThrow(/^questionSchema \/\$schema: /);
+	});
+});
+
+describe("validateQuestion", () => {
+	let schema: QuestionSchema;
+	beforeEach(() => {
+		schema = parseQuestionSchema(REF) as QuestionSchema;
+	});
+
+	it("reports a root-level violation at (fields)", () => {
+		const rootEnum = parseQuestionSchema({ type: "object", enum: ["x"] }) as QuestionSchema;
+
+		const violations = validateQuestion(rootEnum, {});
+
+		expect(violations.map((v) => v.path)).toEqual(["(fields)"]);
+	});
+
+	it('returns no violations for { topic: "other" }', () => {
+		expect(validateQuestion(schema, { topic: "other" })).toEqual([]);
+	});
+
+	it("reports topic for \"unknown\" listing the allowed values", () => {
+		const violations = validateQuestion(schema, { topic: "unknown" });
+
+		expect(violations.map((v) => v.path)).toEqual(["topic"]);
+		expect(violations[0]?.message).toContain("\"fact\", \"scope\", \"other\"");
+	});
+
+	it("reports a missing topic at topic", () => {
+		expect(validateQuestion(schema, {}).map((v) => v.path)).toEqual(["topic"]);
+	});
+
+	it("reports an extra property at its name with additionalProperties false", () => {
+		const violations = validateQuestion(schema, { topic: "fact", extra: 1 });
+
+		expect(violations.map((v) => v.path)).toEqual(["extra"]);
+	});
+
+	it("keeps undeclared fields when additionalProperties is unset", () => {
+		const open = parseQuestionSchema({ type: "object" }) as QuestionSchema;
+
+		expect(validateQuestion(open, { extra: 1 })).toEqual([]);
 	});
 });
 
