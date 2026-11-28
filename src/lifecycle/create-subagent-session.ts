@@ -35,7 +35,7 @@ import { type EffectiveFacts, effectiveFacts, launchIdentity, type ToolFacts } f
 import { type EffectiveSkills, effectiveSkillChoice, type LaunchResources } from "#src/seams/launch-resources";
 import { applyLocks, type LaunchValues } from "#src/seams/locked-launch";
 import { blockedToolCount, finalToolNames } from "#src/seams/registry";
-import type { LaunchMetadata, ResultSchema } from "#src/service/service";
+import type { LaunchMetadata, QuestionSchema, ResultSchema } from "#src/service/service";
 import { AskParentTool, type QuestionRecorder } from "#src/session/ask-parent-tool";
 import { builtinExtensionsFor } from "#src/session/builtin-extensions";
 import type { EnvInfo } from "#src/session/env";
@@ -235,6 +235,8 @@ export interface CreateSubagentSessionParams {
    * child; its absence installs no ask-back tool.
    */
   askParent?: QuestionRecorder;
+  /** The schema `ask_parent` takes its extra fields from; absent keeps the plain question tool. */
+  questionSchema?: QuestionSchema;
   /**
    * Announces a mid-run update the child sends with `notify_parent`. Supplied
    * only for a background child whose operator left the channel on; its absence
@@ -281,7 +283,7 @@ export interface CreateSubagentSessionParams {
  */
 function buildChildTools(params: CreateSubagentSessionParams): ToolDefinition[] {
   const tools: ToolDefinition[] = [];
-  if (params.askParent) tools.push(new AskParentTool(params.askParent).toToolDefinition());
+  if (params.askParent) tools.push(new AskParentTool(params.askParent, params.questionSchema).toToolDefinition());
   if (params.notifyParent)
     tools.push(new NotifyParentTool(params.notifyParent).toToolDefinition());
   if (params.resultSchema && params.submitResult)

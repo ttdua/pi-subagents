@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { TurnLoopResult } from "#src/lifecycle/subagent-session";
+import type { AskedQuestion } from "#src/session/ask-parent-tool";
 import { MAX_EXPANDED_LINES, PREVIEW_CHARS } from "#src/tools/get-result-renderer";
 import {
 	type GetResultParams,
@@ -175,11 +176,11 @@ describe("GetResultTool — a wait a resume superseded", () => {
 	 */
 	function supersededAgent() {
 		const sessionStub = createSubagentSessionStub();
-		let ask: ((question: string) => void) | undefined;
+		let ask: ((question: AskedQuestion) => void) | undefined;
 		const resumed = Promise.withResolvers<TurnLoopResult>();
 		sessionStub.runTurnLoop
 			.mockImplementationOnce(() => {
-				ask?.("Which config?");
+				ask?.({ text: "Which config?" });
 				return Promise.resolve(turnLoopResult({ responseText: "first result" }));
 			})
 			.mockReturnValueOnce(resumed.promise);

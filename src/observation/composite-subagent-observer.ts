@@ -1,6 +1,7 @@
 import { debugLog } from "#src/debug";
 import type { SubagentManagerObserver } from "#src/lifecycle/subagent-manager";
 import type { RunKind } from "#src/lifecycle/subagent-run";
+import type { AskedQuestion } from "#src/session/ask-parent-tool";
 import type { CompactionInfo, Subagent } from "#src/types";
 
 /**
@@ -38,7 +39,7 @@ export class CompositeSubagentObserver implements SubagentManagerObserver {
     this.dispatch((o) => o.onSubagentUpdate?.(record, message), "onSubagentUpdate");
   }
 
-  onSubagentQuestion(record: Subagent, question: string): void {
+  onSubagentQuestion(record: Subagent, question: AskedQuestion): void {
     this.dispatch((o) => o.onSubagentQuestion?.(record, question), "onSubagentQuestion");
   }
 

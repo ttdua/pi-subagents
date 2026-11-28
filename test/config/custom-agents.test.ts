@@ -31,6 +31,20 @@ describe("loadCustomAgents", () => {
     writeFileSync(join(dir, `${name}.md`), content);
   }
 
+  it("ignores a question_schema frontmatter key", () => {
+    writeAgent("asker", `---
+description: Asker
+question_schema: x
+---
+
+Body.
+`);
+    const config = loadCustomAgents(tmpDir, NO_DIRS).get("asker");
+    expect(config).toBeDefined();
+    expect(Object.keys(config!)).not.toContain("questionSchema");
+    expect(Object.keys(config!)).not.toContain("question_schema");
+  });
+
   it("returns empty map when .pi/agents/ does not exist", () => {
     const result = loadCustomAgents(tmpDir, NO_DIRS);
     expect(result.size).toBe(0);

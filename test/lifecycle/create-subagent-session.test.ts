@@ -5,6 +5,7 @@ import type {
 } from "#src/lifecycle/create-subagent-session";
 import { createSubagentSession } from "#src/lifecycle/create-subagent-session";
 import { SubagentSession } from "#src/lifecycle/subagent-session";
+import type { AskedQuestion } from "#src/session/ask-parent-tool";
 import { builtinConfig } from "#test/helpers/builtin-config";
 import { STUB_CTX, STUB_SNAPSHOT } from "#test/helpers/stub-ctx";
 import {
@@ -400,7 +401,7 @@ describe("createSubagentSession — the core's own child tools", () => {
 
     it("routes a call on the installed tool to the supplied recorder", async () => {
       arrangeFactory();
-      const askParent = vi.fn<(question: string) => void>();
+      const askParent = vi.fn<(question: AskedQuestion) => void>();
 
       await createSubagentSession(
         { agentId: "a1", snapshot: STUB_SNAPSHOT, type: "Explore", askParent },
@@ -415,7 +416,30 @@ describe("createSubagentSession — the core's own child tools", () => {
         () => {},
         STUB_CTX as ExecuteCtx,
       );
-      expect(askParent).toHaveBeenCalledWith("Which config wins?");
+      expect(askParent).toHaveBeenCalledWith({ text: "Which config wins?" });
+    });
+  });
+
+  describe("when the launch supplies a question schema", () => {
+    it("ask_parent takes the launch's question schema", async () => {
+      arrangeFactory();
+      const schema = {
+        type: "object",
+        properties: { topic: { enum: ["fact", "scope", "other"] } },
+        required: ["topic"],
+        additionalProperties: false,
+      } as const;
+
+      await createSubagentSession(
+        { agentId: "a1", snapshot: STUB_SNAPSHOT, type: "Explore", askParent: vi.fn(), questionSchema: schema },
+        defaultDeps(),
+      );
+
+      const opts = io.createSession.mock.calls[0][0] as CreateSessionOptions;
+      const tool = opts.customTools?.find((t) => t.name === "ask_parent");
+      const properties = (tool?.parameters as unknown as { properties?: object } | undefined)?.properties ?? {};
+      expect(Object.keys(properties)).toContain("topic");
+      expect(opts.customTools).toHaveLength(1);
     });
   });
 

@@ -509,6 +509,68 @@ describe("SubagentsService.wait", () => {
 		});
 	});
 
+	describe("structured question", () => {
+		const questionSchema = { type: "object", properties: { topic: { enum: ["scope", "other"] } }, required: ["topic"] };
+		const ask = (t: Turn) => t.tool("ask_parent", { question: "Q", topic: "scope" });
+
+		it("waited run keeps its structured question after a resume", async () => {
+			const gate = Promise.withResolvers<void>();
+			const h = harness({
+				script: async (t) => {
+					if (t.n === 0) {
+						await ask(t);
+						t.say("first");
+					} else {
+						await t.park(gate.promise);
+						t.say("second");
+					}
+				},
+			});
+			h.subscribe("subagents:completed", (data) => { void h.service.resume(data.id, "A"); });
+			const id = h.spawn({ questionSchema });
+
+			const record = await h.service.wait(id);
+
+			expect([record.pendingQuestion, record.structuredQuestion]).toEqual(["Q", { topic: "scope" }]);
+			expect(h.service.getRecord(id)).not.toHaveProperty("structuredQuestion");
+			gate.resolve();
+			await h.settled(id);
+		});
+
+		it("failure after a structured question", async () => {
+			const h = harness({
+				script: async (t) => {
+					await ask(t);
+					throw new Error("boom");
+				},
+			});
+			const record = await h.service.wait(h.spawn({ questionSchema }));
+			expect(record.status).toBe("error");
+			expect(record).not.toHaveProperty("pendingQuestion");
+			expect(record).not.toHaveProperty("structuredQuestion");
+		});
+
+		it("turn limit keeps it", async () => {
+			const h = harness({
+				script: async (t) => {
+					await ask(t);
+					for (let i = 0; i < 5 && t.session.abort.mock.calls.length === 0; i++) {
+						const turn = {
+							message: { role: "assistant", stopReason: "toolUse" },
+							toolResults: [{ role: "toolResult" }],
+						};
+						t.session.emit({ type: "turn_start" });
+						await t.session.agent.finishTurn?.(turn);
+						t.session.emit({ type: "turn_end", ...turn });
+					}
+					t.say("partial");
+				},
+			});
+			const record = await h.service.wait(h.spawn({ questionSchema, maxTurns: 2 }));
+			expect([record.status, record.pendingQuestion, record.structuredQuestion]).toEqual(["aborted", "Q", { topic: "scope" }]);
+		});
+	});
+
 	describe("structured outcome", () => {
 		const resultSchema = { type: "object", properties: { status: { type: "string" } }, required: ["status"] };
 

@@ -3,6 +3,7 @@ import type { RunKind } from "#src/lifecycle/subagent-run";
 import { buildEventData, type NotificationSystem } from "#src/observation/notification";
 import { SUBAGENT_RECORD_ENTRY, toPersistedRecord } from "#src/persisted-record";
 import { launchFields } from "#src/seams/identity";
+import type { AskedQuestion } from "#src/session/ask-parent-tool";
 import type { CompactionInfo, Subagent } from "#src/types";
 
 /** Emit callback — a subset of `pi.events.emit`. */
@@ -92,10 +93,11 @@ export class SubagentEventsObserver implements SubagentManagerObserver {
 	 * an update: the question is the record's pending state, which the result
 	 * carriers render, so nothing is persisted here.
 	 */
-	onSubagentQuestion(record: Subagent, question: string): void {
+	onSubagentQuestion(record: Subagent, question: AskedQuestion): void {
 		this.emit("subagents:asked", {
 			...identityOf(record),
-			question,
+			question: question.text,
+			...(question.fields !== undefined && { structuredQuestion: question.fields }),
 			...launchFields(record),
 		});
 	}

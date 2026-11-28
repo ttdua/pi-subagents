@@ -22,6 +22,7 @@ import {
 } from "#src/lifecycle/subagent-state";
 import type { TurnBudget } from "#src/lifecycle/turn-limits";
 import type { StructuredResultError } from "#src/service/service";
+import type { AskedQuestion } from "#src/session/ask-parent-tool";
 
 /** Which run of a subagent this is: the one that created its session, or a resume of it. */
 export type RunKind = "initial" | "resume";
@@ -47,8 +48,12 @@ export interface RunOutcome {
 	readonly stoppedWhileQueued: boolean;
 	/** Undefined once a later run replaced this one: the resume that started it is the answer. */
 	readonly pendingQuestion: string | undefined;
+	/** The open question's fields; undefined once a later run replaced this one. */
+	readonly pendingStructuredQuestion: unknown;
 	/** The question the run recorded, also after a later run replaced it. */
 	readonly question: string | undefined;
+	/** The recorded fields, also after a later run replaced it. */
+	readonly structuredQuestion: unknown;
 	readonly workspaceNotice: string | undefined;
 	/** The updates no announcement delivered; what the carrier still owes. */
 	readonly runUpdates: readonly string[];
@@ -123,10 +128,14 @@ export class SubagentRun implements RunOutcome {
 	// The question this run ended its turn with, if it declared one. Part of the
 	// outcome like _result, and set while the run is under way by ask_parent.
 	// Pending until a resume answers it: the run that resume starts replaces this one.
-	private _pendingQuestion?: string;
-	get pendingQuestion(): string | undefined { return this._replaced ? undefined : this._pendingQuestion; }
+	private _pendingQuestion?: AskedQuestion;
+	get pendingQuestion(): string | undefined { return this._replaced ? undefined : this._pendingQuestion?.text; }
 	/** The recorded question regardless of `replaced`: what the run ended with. */
-	get question(): string | undefined { return this._pendingQuestion; }
+	get question(): string | undefined { return this._pendingQuestion?.text; }
+	/** The fields of the open question; undefined once a later run replaced this one, as `pendingQuestion`. */
+	get pendingStructuredQuestion(): unknown { return this._replaced ? undefined : this._pendingQuestion?.fields; }
+	/** The recorded fields regardless of `replaced`, as `question`. */
+	get structuredQuestion(): unknown { return this._pendingQuestion?.fields; }
 
 	// Whether a resume has replaced this run. Set once the run has settled and a
 	// resume starts the next one, so a carrier still holding this run can tell.
@@ -212,7 +221,7 @@ export class SubagentRun implements RunOutcome {
 		this._stoppedWhileQueued = init.stoppedWhileQueued ?? false;
 		this._startedAt = init.startedAt ?? Date.now();
 		this._completedAt = init.completedAt;
-		this._pendingQuestion = init.pendingQuestion;
+		this._pendingQuestion = init.pendingQuestion === undefined ? undefined : { text: init.pendingQuestion };
 		this._workspaceNotice = init.workspaceNotice;
 		this._turnBudget = init.turnBudget;
 		this.expectsStructuredResult = init.expectsStructuredResult ?? false;
@@ -327,8 +336,11 @@ export class SubagentRun implements RunOutcome {
 	}
 
 	/** Record the question the run ended its turn with; undefined drops it. */
-	setPendingQuestion(question: string | undefined): void {
-		this._pendingQuestion = question;
+	setPendingQuestion(question: AskedQuestion | undefined): void {
+		this._pendingQuestion = question && {
+			text: question.text,
+			fields: question.fields === undefined ? undefined : deepFreeze(question.fields),
+		};
 	}
 
 	/** Record what a teardown reported when no result text could carry it. */

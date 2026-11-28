@@ -82,6 +82,8 @@ export interface SubagentRecord {
   structuredResultError?: StructuredResultError;
   /** The question the agent ended its turn with, when it declared one. */
   pendingQuestion?: string;
+  /** The fields of `pendingQuestion`, validated against the launch's `questionSchema`; present only with `pendingQuestion` on such a launch. */
+  structuredQuestion?: unknown;
   error?: string;
   toolUses: number;
   /**
@@ -178,6 +180,9 @@ export type ResultSchema = Readonly<{
   description?: string;
   $schema?: "https://json-schema.org/draft/2020-12/schema";
 }>;
+
+/** JSON Schema subset a launch's `ask_parent` fields must match; the root is always an object. */
+export type QuestionSchema = ResultSchema & Readonly<{ type: "object" }>;
 
 /** Why a launch with a result schema has no structured result. */
 export type StructuredResultError = "missing" | "invalid";
@@ -341,6 +346,12 @@ export interface SpawnOptions {
    * anything else, and refused with `context: "fork"`. Copied at spawn.
    */
   resultSchema?: ResultSchema;
+  /**
+   * Shape of the fields the child passes to `ask_parent` beside `question`. The
+   * same JSON Schema subset as `resultSchema`, with the root `type` `"object"`.
+   * MUST NOT name `question`. Refused with `context: "fork"`. Copied at spawn.
+   */
+  questionSchema?: QuestionSchema;
 }
 
 /** The public service contract for cross-extension subagent access. */

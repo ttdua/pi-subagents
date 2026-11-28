@@ -7,6 +7,7 @@ import {
   formatWorkspaceNotice,
   NotificationManager,
 } from "#src/observation/notification";
+import type { AskedQuestion } from "#src/session/ask-parent-tool";
 import { createTestSubagent, makeStubExecution } from "#test/helpers/make-subagent";
 import { makeWorkspace, makeWorkspaceProvider } from "#test/helpers/make-workspace";
 import { createSubagentSessionStub, toSubagentSession } from "#test/helpers/mock-session";
@@ -213,6 +214,13 @@ describe("buildEventData", () => {
     expect(buildEventData(record).turnBudget).toEqual({ maxTurns: 2, used: 7, phase: "exhausted" });
   });
 
+  it("carries structuredQuestion only when set", () => {
+    const withFields = createTestSubagent();
+    Object.defineProperty(withFields, "structuredQuestion", { value: { topic: "scope" } });
+    expect(buildEventData(withFields).structuredQuestion).toEqual({ topic: "scope" });
+    expect(buildEventData(baseRecord)).not.toHaveProperty("structuredQuestion");
+  });
+
   it("carries the structured outcome only when set", () => {
     const withResult = createTestSubagent();
     Object.defineProperty(withResult, "structuredResult", { value: { status: "done" } });
@@ -296,9 +304,9 @@ describe("NotificationManager", () => {
     // An aborted child keeps its question but does not hold its workspace, so
     // the disposal is driven by the production path rather than seeded state.
     const stub = createSubagentSessionStub();
-    let askParent: ((question: string) => void) | undefined;
+    let askParent: ((question: AskedQuestion) => void) | undefined;
     stub.runTurnLoop.mockImplementation(() => {
-      askParent?.("Which config?");
+      askParent?.({ text: "Which config?" });
       return Promise.resolve(turnLoopResult({ responseText: "Got partway.", turnBudget: { maxTurns: 2, used: 7, phase: "exhausted" } }));
     });
     const disposed = createTestSubagent({

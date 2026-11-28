@@ -89,6 +89,13 @@ describe("toSubagentRecord", () => {
     expect(toSubagentRecord(createTestSubagent())).not.toHaveProperty("structuredResultError");
   });
 
+  it("the record snapshot carries structuredQuestion only when set", () => {
+    const withFields = createTestSubagent();
+    Object.defineProperty(withFields, "structuredQuestion", { value: { topic: "scope" } });
+    expect(toSubagentRecord(withFields).structuredQuestion).toEqual({ topic: "scope" });
+    expect(toSubagentRecord(createTestSubagent())).not.toHaveProperty("structuredQuestion");
+  });
+
   it("omits resumeRefusal when a resume would start", () => {
     expect(toSubagentRecord(createTestSubagent({ sessionReady: true }))).not.toHaveProperty("resumeRefusal");
   });
@@ -446,6 +453,67 @@ describe("SubagentsServiceAdapter — spawn", () => {
       const { mgr, svc } = withAgent({});
       svc.spawn("Explore", "t");
       expect((mgr.spawn as ReturnType<typeof vi.fn>).mock.calls[0]![3].resultSchema).toBeUndefined();
+    });
+  });
+
+  describe("questionSchema", () => {
+    const SCHEMA = { type: "object", properties: { topic: { enum: ["scope", "other"] } }, required: ["topic"] } as const;
+    const withAgent = (agent: Record<string, unknown>) => {
+      const mgr = createManagerStub();
+      const types = { list: () => [], get: () => agent as never };
+      return { mgr, svc: new SubagentsServiceAdapter(mgr, vi.fn(), makeRuntimeStub(), types) };
+    };
+
+    it("refuses a non-object root before the session check", () => {
+      const mgr = createManagerStub();
+      const svc = new SubagentsServiceAdapter(mgr, vi.fn(), makeRuntimeStub({ currentCtx: undefined }), NO_AGENT_TYPES);
+      expect(() => svc.spawn("Explore", "t", { questionSchema: { type: "string" } as never })).toThrow(/^questionSchema \/type:/);
+      expect(mgr.spawn).not.toHaveBeenCalled();
+    });
+
+    it("refuses fork named by the caller, naming both options", () => {
+      const { mgr, svc } = withAgent({});
+      expect(() => svc.spawn("Explore", "t", { context: "fork", questionSchema: SCHEMA })).toThrow(
+        /questionSchema.*fork|fork.*questionSchema/,
+      );
+      expect(mgr.spawn).not.toHaveBeenCalled();
+    });
+
+    it("refuses an agent default fork", () => {
+      const { mgr, svc } = withAgent({ context: "fork" });
+      expect(() => svc.spawn("Explore", "t", { questionSchema: SCHEMA })).toThrow(/questionSchema.*fork|fork.*questionSchema/);
+      expect(mgr.spawn).not.toHaveBeenCalled();
+    });
+
+    it("accepts fresh", () => {
+      const { mgr, svc } = withAgent({});
+      svc.spawn("Explore", "t", { context: "fresh", questionSchema: SCHEMA });
+      expect(mgr.spawn).toHaveBeenCalledTimes(1);
+    });
+
+    it("refuses a schema before building a snapshot or spawning", () => {
+      const mgr = createManagerStub();
+      const runtime = makeRuntimeStub();
+      const svc = new SubagentsServiceAdapter(mgr, vi.fn(), runtime, NO_AGENT_TYPES);
+      expect(() => svc.spawn("Explore", "t", { questionSchema: { type: "string" } as never })).toThrow(/questionSchema/);
+      expect(() => svc.spawn("Explore", "t", { context: "fork", questionSchema: SCHEMA })).toThrow(/questionSchema/);
+      expect(runtime.buildSnapshot).not.toHaveBeenCalled();
+      expect(mgr.spawn).not.toHaveBeenCalled();
+    });
+
+    it("passes a frozen copy to the manager", () => {
+      const { mgr, svc } = withAgent({});
+      svc.spawn("Explore", "t", { questionSchema: SCHEMA });
+      const passed = (mgr.spawn as ReturnType<typeof vi.fn>).mock.calls[0]![3].questionSchema;
+      expect(passed).toEqual(SCHEMA);
+      expect(passed).not.toBe(SCHEMA);
+      expect(Object.isFrozen(passed)).toBe(true);
+    });
+
+    it("passes none without a schema", () => {
+      const { mgr, svc } = withAgent({});
+      svc.spawn("Explore", "t");
+      expect((mgr.spawn as ReturnType<typeof vi.fn>).mock.calls[0]![3].questionSchema).toBeUndefined();
     });
   });
 

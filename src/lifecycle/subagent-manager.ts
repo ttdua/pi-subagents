@@ -36,7 +36,8 @@ import {
   type LaunchResources,
   type LaunchResourcesIO,
 } from "#src/seams/launch-resources";
-import type { LaunchMetadata, LaunchOrigin, LaunchPolicy, ResultSchema } from "#src/service/service";
+import type { LaunchMetadata, LaunchOrigin, LaunchPolicy, QuestionSchema, ResultSchema } from "#src/service/service";
+import type { AskedQuestion } from "#src/session/ask-parent-tool";
 import type { AgentConfig, CompactionInfo, ContextMode, ParentSessionInfo, SubagentType, ThinkingLevel } from "#src/types";
 
 /**
@@ -169,7 +170,7 @@ export interface SubagentManagerObserver {
    * Fires when a running child records a question for its parent.
    * Optional: a hook nobody supplies is a vacant one.
    */
-  onSubagentQuestion?(record: Subagent, question: string): void;
+  onSubagentQuestion?(record: Subagent, question: AskedQuestion): void;
   /**
    * Fires when a teardown after the record's result was delivered reported
    * where its work went.
@@ -238,6 +239,8 @@ export interface AgentSpawnConfig {
   resources?: LaunchResources;
   /** The service launch's validated, frozen result schema; absent for a tool launch. */
   resultSchema?: ResultSchema;
+  /** The service launch's validated, frozen question schema; absent for a tool launch. */
+  questionSchema?: QuestionSchema;
 }
 
 /** The message an explicit fork fails with when the parent has nothing to copy. */
@@ -455,6 +458,7 @@ export class SubagentManager {
         resources: options.resources,
         launchResourcesIO: this.launchResourcesIO,
         resultSchema: options.resultSchema,
+        questionSchema: options.questionSchema,
         context: launch.context,
         contextSource: options.contextSource,
         contextFallback: launch.contextFallback,

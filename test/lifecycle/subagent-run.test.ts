@@ -401,15 +401,66 @@ describe("SubagentRun", () => {
 
 		it("records the question, and drops it on undefined", () => {
 			const run = runIn("running");
-			run.setPendingQuestion("Which one?");
+			run.setPendingQuestion({ text: "Which one?" });
 			expect(run.pendingQuestion).toBe("Which one?");
 			run.setPendingQuestion(undefined);
 			expect(run.pendingQuestion).toBeUndefined();
 		});
 
+		describe("structured question", () => {
+			it("stores question text and fields together", () => {
+				const run = runIn("running");
+
+				run.setPendingQuestion({ text: "Q", fields: { topic: "scope" } });
+
+				expect(run.question).toBe("Q");
+				expect(run.structuredQuestion).toEqual({ topic: "scope" });
+				expect(Object.isFrozen(run.structuredQuestion)).toBe(true);
+				expect(run.pendingStructuredQuestion).toEqual({ topic: "scope" });
+				expect(Object.isFrozen(run.pendingStructuredQuestion)).toBe(true);
+			});
+
+			it("a later question replaces both", () => {
+				const run = runIn("running");
+				run.setPendingQuestion({ text: "Q", fields: { topic: "scope" } });
+
+				run.setPendingQuestion({ text: "Q2", fields: { topic: "fact" } });
+
+				expect([run.question, run.structuredQuestion]).toEqual(["Q2", { topic: "fact" }]);
+			});
+
+			it("undefined clears both", () => {
+				const run = runIn("running");
+				run.setPendingQuestion({ text: "Q", fields: { topic: "scope" } });
+
+				run.setPendingQuestion(undefined);
+
+				expect([run.question, run.structuredQuestion, run.pendingStructuredQuestion]).toEqual([undefined, undefined, undefined]);
+			});
+
+			it("replaced hides pending fields but keeps the recorded ones", () => {
+				const run = runIn("completed");
+				run.setPendingQuestion({ text: "Q", fields: { topic: "scope" } });
+
+				run.markReplaced();
+
+				expect(run.pendingStructuredQuestion).toBeUndefined();
+				expect(run.structuredQuestion).toEqual({ topic: "scope" });
+			});
+
+			it("a text-only question has no structured question", () => {
+				const run = runIn("running");
+
+				run.setPendingQuestion({ text: "Q" });
+
+				expect(run.structuredQuestion).toBeUndefined();
+				expect(run.pendingStructuredQuestion).toBeUndefined();
+			});
+		});
+
 		it("a replaced run reports no open question: the resume that replaced it is the answer", () => {
 			const run = runIn("completed");
-			run.setPendingQuestion("Which one?");
+			run.setPendingQuestion({ text: "Which one?" });
 
 			run.markReplaced();
 
@@ -548,7 +599,7 @@ describe("SubagentRun", () => {
 	describe("question and finished", () => {
 		it("keeps the recorded question readable after the run is replaced", () => {
 			const run = new SubagentRun("initial", true);
-			run.setPendingQuestion("Q");
+			run.setPendingQuestion({ text: "Q" });
 			run.markReplaced();
 			expect(run.pendingQuestion).toBeUndefined();
 			expect(run.question).toBe("Q");
@@ -649,7 +700,7 @@ describe("SubagentRun", () => {
 		it("has no error and no value while a question is pending, even replaced", () => {
 			const run = expecting();
 			run.recordSubmitAttempt();
-			run.setPendingQuestion("which?");
+			run.setPendingQuestion({ text: "which?" });
 			run.markCompleted("done");
 
 			expect(run.structuredResultError).toBeUndefined();

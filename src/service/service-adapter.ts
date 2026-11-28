@@ -18,7 +18,7 @@ import { lookupChildSession } from "#src/seams/child-sessions";
 import { parseLaunchMetadata } from "#src/seams/launch-metadata";
 import { defaultLaunchResourcesIO, parseLaunchResources } from "#src/seams/launch-resources";
 import type { AgentTypeCatalog } from "#src/seams/registry";
-import { parseResultSchema } from "#src/seams/result-schema";
+import { parseQuestionSchema, parseResultSchema } from "#src/seams/result-schema";
 import type {
   AgentTypeSnapshot,
   ChildSessionInfo,
@@ -104,6 +104,7 @@ export class SubagentsServiceAdapter implements SubagentsService {
     const metadata = parseLaunchMetadata(options?.metadata);
     const resources = parseLaunchResources(options ?? {}, defaultLaunchResourcesIO(getAgentDir()));
     const resultSchema = parseResultSchema(options?.resultSchema);
+    const questionSchema = parseQuestionSchema(options?.questionSchema);
     if (!this.runtime.currentCtx) {
       throw new Error("No active session — cannot spawn agents outside a session.");
     }
@@ -120,6 +121,11 @@ export class SubagentsServiceAdapter implements SubagentsService {
         'resultSchema cannot be used with context "fork": a forked child inherits the parent\'s conversation, so the submit_result protocol cannot be set up.',
       );
     }
+    if (questionSchema && context === "fork") {
+      throw new Error(
+        'questionSchema cannot be used with context "fork": a forked child inherits the parent\'s conversation and gets no ask_parent tool.',
+      );
+    }
     const snapshot = this.runtime.buildSnapshot(context);
     const { parentSessionFile, parentSessionId } = this.runtime.getSessionInfo();
     return this.manager.spawn(snapshot, type, prompt, {
@@ -132,6 +138,7 @@ export class SubagentsServiceAdapter implements SubagentsService {
       metadata,
       resources,
       resultSchema,
+      questionSchema,
       maxTurns: options?.maxTurns,
       thinkingLevel: this.resolveThinkingLevel(options?.thinkingLevel),
       context,
@@ -292,6 +299,7 @@ export function toWaitedRecord(record: Subagent, run: RunOutcome): SubagentRecor
   setOrOmit(out, "completedAt", run.completedAt);
   setOrOmit(out, "turnBudget", run.turnBudget && { ...run.turnBudget });
   setOrOmit(out, "pendingQuestion", run.question);
+  setOrOmit(out, "structuredQuestion", run.structuredQuestion);
   setOrOmit(out, "structuredResult", run.structuredResult);
   setOrOmit(out, "structuredResultError", run.structuredResultError);
   return out;
@@ -333,6 +341,7 @@ export function toSubagentRecord(record: Subagent): SubagentRecord {
   if (record.structuredResult !== undefined) out.structuredResult = record.structuredResult;
   if (record.structuredResultError !== undefined) out.structuredResultError = record.structuredResultError;
   if (record.pendingQuestion !== undefined) out.pendingQuestion = record.pendingQuestion;
+  if (record.structuredQuestion !== undefined) out.structuredQuestion = record.structuredQuestion;
   if (record.error !== undefined) out.error = record.error;
   if (record.completedAt !== undefined) out.completedAt = record.completedAt;
   // Copy, like lifetimeUsage: the snapshot is by value.
